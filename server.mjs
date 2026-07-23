@@ -69,11 +69,20 @@ function loadVariants(name, task) {
         model: meta.model || "",
         description: meta.description || "",
         parent: meta.parent || null,
+        adjust: meta.adjust === true, // adjust revisions fold into their root node's rail instead of branching
         url: meta.url || null, // url variants render a live route instead of the file body
         html,
       };
     });
 }
+
+/* ── images ───────────────────────────────── */
+// Reference images pasted into the board's composer. Stored content-addressed
+// in <task>/images/ so re-pasting the same screenshot never duplicates, and
+// request lines can point at them with stable relative paths.
+const IMG_EXT = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" };
+const IMG_FILE_RE = /^[a-f0-9]{12}\.(png|jpg|gif|webp)$/;
+const IMG_MAX = 10 * 1024 * 1024;
 
 // requests.jsonl is append-only. "request" lines create entries; "status"
 // lines (appended later) override an entry's status — except "cancelled",
@@ -153,6 +162,16 @@ async function readBody(req) {
   let b = "";
   for await (const c of req) b += c;
   try { return JSON.parse(b); } catch { return null; }
+}
+async function readRaw(req, max) {
+  const chunks = [];
+  let size = 0;
+  for await (const c of req) {
+    size += c.length;
+    if (size > max) return null;
+    chunks.push(c);
+  }
+  return Buffer.concat(chunks);
 }
 function esc(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -244,6 +263,34 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    const im = rest.match(/^t\/([A-Za-z0-9_-]+)\/images(?:\/([a-f0-9]{12}\.[a-z0-9]+))?$/);
+    if (im) {
+      const dir = taskPath(name, im[1]);
+      if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory())
+        return json(res, 404, { error: "unknown task" });
+      const idir = path.join(dir, "images");
+
+      if (!im[2] && req.method === "POST") {
+        const ext = IMG_EXT[(req.headers["content-type"] || "").split(";")[0].trim()];
+        if (!ext) return json(res, 415, { error: "png, jpeg, gif or webp only" });
+        const buf = await readRaw(req, IMG_MAX);
+        if (!buf) return json(res, 413, { error: "image too large (10MB max)" });
+        if (!buf.length) return json(res, 400, { error: "empty body" });
+        const file = crypto.createHash("sha1").update(buf).digest("hex").slice(0, 12) + "." + ext;
+        fs.mkdirSync(idir, { recursive: true });
+        fs.writeFileSync(path.join(idir, file), buf);
+        return json(res, 200, { file: "images/" + file });
+      }
+      if (im[2] && req.method === "GET" && IMG_FILE_RE.test(im[2])) {
+        const fp = path.join(idir, im[2]);
+        if (!fs.existsSync(fp)) { res.writeHead(404); return res.end("not found"); }
+        const type = { png: "image/png", jpg: "image/jpeg", gif: "image/gif", webp: "image/webp" }[im[2].split(".").pop()];
+        // content-addressed names never change contents — cache forever
+        res.writeHead(200, { "Content-Type": type, "Cache-Control": "max-age=31536000, immutable" });
+        return res.end(fs.readFileSync(fp));
+      }
+    }
+
     const t = rest.match(/^t\/([A-Za-z0-9_-]+)\/(variants|requests)(?:\/([A-Za-z0-9-]+)\/cancel)?$/);
     if (t) {
       const task = t[1];
@@ -259,15 +306,21 @@ const server = http.createServer(async (req, res) => {
 
       if (t[2] === "requests" && !t[3] && req.method === "POST") {
         const b = await readBody(req);
-        if (!b?.text?.trim()) return json(res, 400, { error: "empty text" });
+        // reference images: previously-uploaded paths only, relative to the task dir
+        const images = (Array.isArray(b?.images) ? b.images : []).filter(
+          (f) => typeof f === "string" && f.startsWith("images/") && IMG_FILE_RE.test(f.slice(7)) &&
+            fs.existsSync(path.join(dir, f))
+        );
+        if (!b?.text?.trim() && !images.length) return json(res, 400, { error: "empty text" });
         const entry = {
           kind: "request",
           id: crypto.randomBytes(4).toString("hex"),
           ts: new Date().toISOString(),
-          text: b.text.trim(),
+          text: (b.text || "").trim(),
           variants: Array.isArray(b.variants) ? b.variants : [],
           status: "pending",
         };
+        if (images.length) entry.images = images;
         if (["derive", "pick", "feedback"].includes(b.type)) entry.type = b.type;
         // derive requests carry how many children to build; the board renders
         // that many ghost nodes while the request is open

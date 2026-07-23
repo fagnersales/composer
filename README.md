@@ -16,7 +16,12 @@ request is open and resolve into real nodes when files land (SSE).
 
 Board UI: drag nodes to arrange (positions persist per task in
 localStorage), double-click to inspect (aspect switcher + pause/restart for
-HTML variants), select + composer to derive children, "Cancel" on a ghost
+HTML variants), select + composer to derive children (paste or drop
+reference images into the composer to send them along; shift+click
+selects multiple variants and derives children combining all of them).
+The composer's Derive|Adjust toggle (or a node's "+" rail chip) switches
+to **adjust**: one small tweak to the selected node, delivered as a new
+revision chip on the same node instead of a branch. "Cancel" on a ghost
 node cancels its derive request, "Pick this one" asks the fleet to implement
 that design. Task switcher in the HUD flips between the project's past and
 current tasks. Derive/pick are **locked while no fleet agent is
@@ -44,7 +49,12 @@ dir. A `demo` session ships in `demo/`.
     task.json                        # {"title": "...", "created": ISO}
     requests.jsonl                   # append-only feedback inbox
     variants/                        # NN-slug.html, one per variant
+    images/                          # reference images pasted into the board
 ```
+
+`images/` holds reference images uploaded from the board's composer,
+content-addressed as `<sha1-prefix>.<ext>` (png/jpg/gif/webp). Requests
+point at them via the `images` field.
 
 ## Variant file format
 
@@ -57,6 +67,11 @@ Each variant is an `.html` file whose first line is a metadata comment:
 
 - `parent` (optional): filename of the variant this one was derived from —
   draws the lineage edge. Derived variants MUST set it.
+- `adjust` (optional, boolean): this file is a **revision** of its `parent`
+  (same design, one small tweak), not a branch. The board folds the whole
+  adjust-chain into the parent's node as a revision rail (v1·v2·… chips
+  under the card, "+" to request another tweak) — no lineage edge is drawn.
+  Adjust variants MUST also set `parent`.
 - `url` (optional): for variants that are real routes on the project's dev
   server (component-based mocks) instead of self-contained HTML. The board
   iframes the URL; the file body is just a fallback note. URL variants need
@@ -75,8 +90,10 @@ POST /api/sessions/<name>/heartbeat         fleet agent liveness (90s window)
 GET  /api/s/<name>/tasks                    {live, tasks:[{slug,title,created,variants}]}
 GET  /api/s/<name>/t/<task>/variants
 GET  /api/s/<name>/t/<task>/requests
-POST /api/s/<name>/t/<task>/requests        {text, variants[], count?, type?: derive|pick|feedback}
+POST /api/s/<name>/t/<task>/requests        {text, variants[], count?, type?: derive|adjust|pick|feedback, images?: ["images/…"]}
 POST /api/s/<name>/t/<task>/requests/<id>/cancel
+POST /api/s/<name>/t/<task>/images          raw image body (Content-Type: image/png|jpeg|gif|webp, 10MB max) → {file:"images/<hash>.<ext>"}
+GET  /api/s/<name>/t/<task>/images/<file>   serve a stored reference image
 GET  /api/s/<name>/events?task=<slug>       SSE: {"kind":"change"} | {"kind":"status","live":bool}
 ```
 
@@ -89,7 +106,7 @@ status lines are ignored (a fleet that claimed the request before seeing the
 cancel can't resurrect it). Never rewrite the file, only append.
 
 ```jsonl
-{"kind":"request","id":"a1b2c3d4","ts":"…","text":"Derive 3 new variants from \"Midnight Brew\" — warmer","variants":["02-midnight-brew.html"],"status":"pending","count":3,"type":"derive"}
+{"kind":"request","id":"a1b2c3d4","ts":"…","text":"Derive 3 new variants from \"Midnight Brew\" — warmer","variants":["02-midnight-brew.html"],"status":"pending","count":3,"type":"derive","images":["images/ab12cd34ef56.png"]}
 {"kind":"status","id":"a1b2c3d4","status":"building"}
 {"kind":"status","id":"a1b2c3d4","status":"done","note":"→ 06-x.html, 07-y.html, 08-z.html"}
 ```
@@ -97,8 +114,26 @@ cancel can't resurrect it). Never rewrite the file, only append.
 Request `type`s the board sends:
 
 - `derive` — carries `count` (how many children; board shows that many
-  ghost nodes under `variants[0]` until the request closes).
-- `pick` — `variants[0]` is the chosen design. This is **not** a file
+  ghost nodes under `variants[0]` until the request closes). `variants`
+  may list **several** parents (shift+click multi-select): build children
+  that combine/blend all of them, and set each child's meta `parent` to
+  `variants[0]` — the primary lineage edge.
+Requests may carry `images`: reference images the user attached in the
+board's composer, as paths relative to the task folder (they live in its
+`images/` subfolder). The fleet agent should view them — they are visual
+guidance for the requested work.
+
+- `adjust` — `variants[0]` is the revision being tweaked; `text` carries
+  one small change (`Adjust "<name>" — <tweak>`). Always a single parent,
+  no `count`. The fleet should NOT spawn a builder for this: copy the
+  parent file to the next `NN-slug.html`, apply the tweak with targeted
+  edits, and set meta `{"adjust":true,"parent":"<parent file>"}` with the
+  tweak as `description`. While the request is open the board shimmers the
+  node in place (no ghost); the landed file becomes the node's next
+  revision chip.
+
+- `pick` — `variants[0]` is the chosen design (the revision the user had
+  active, if the node has several). This is **not** a file
   operation: it tells the resident agent to *implement that design in the
   project's real code*. The newest non-cancelled pick marks the crown.
 
@@ -115,8 +150,9 @@ Fleet-agent loop (the skill session stays resident):
 2. Watch the task's `requests.jsonl` for `pending` requests.
 3. Unless the request's latest status is `cancelled`, append
    `{"kind":"status","id":…,"status":"building"}`.
-4. For `derive`: read `variants[0]` as the parent, build `count` children
-   into `variants/` (meta with `parent` set, numbering continues from the
-   highest existing). Re-check for `cancelled` between files. For `pick`:
+4. For `derive`: read `variants` as the parent set (usually one; several
+   means combine them), build `count` children into `variants/` (meta
+   `parent` set to `variants[0]`, numbering continues from the highest
+   existing). Re-check for `cancelled` between files. For `pick`:
    implement the chosen variant's design in the project's real codebase.
 5. Append `{"kind":"status","id":…,"status":"done","note":"…"}`.

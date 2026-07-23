@@ -20,13 +20,19 @@ session→dir registry.
    everything (that's the user's generation history, together with the
    board's task switcher).
 3. Variants are `NN-slug.html` files starting with a
-   `<!--variant-meta {"name","model","description","parent"?,"url"?}-->`
-   comment. `parent` draws the lineage edge; `url` makes the board iframe a
+   `<!--variant-meta {"name","model","description","parent"?,"adjust"?,"url"?}-->`
+   comment. `parent` draws the lineage edge; `adjust:true` makes the file a
+   revision of its parent instead (folded into that node's v1·v2·… rail, no
+   edge); `url` makes the board iframe a
    live dev-server route instead of the file body.
 4. UI feedback appends `request` lines to the task's `requests.jsonl`
    (append-only; `status` lines override, later wins — except `cancelled`,
    which is terminal). Derive requests carry
-   `count` (ghost nodes); pick requests mean "implement this design in the
+   `count` (ghost nodes), optionally `images` (reference images pasted
+   into the composer, stored under the task's `images/`), and may list
+   several parents in `variants` (multi-select = combine); adjust requests
+   ("one small tweak") are served inline by the fleet as a new `adjust:true`
+   revision of `variants[0]`, no subagent; pick requests mean "implement this design in the
    real codebase", not a file move.
 5. The resident fleet agent heartbeats
    (`POST /api/sessions/<name>/heartbeat`, 90s window) and serves requests.

@@ -83,7 +83,7 @@
   /* node */
   .node {
     position: absolute; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg);
-    overflow: hidden; cursor: grab; user-select: none;
+    cursor: grab; user-select: none;
     box-shadow: var(--shadow-md);
     transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
   }
@@ -91,7 +91,12 @@
   .node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring), var(--shadow-lg); }
   .node.winner { border-color: var(--accent); }
   .node.building { cursor: default; border-style: dashed; border-color: var(--border-strong); animation: pulse 1.6s ease-in-out infinite; }
-  .node .preview { width: 300px; height: 169px; overflow: hidden; position: relative; background: var(--bg-page); }
+  .node .preview {
+    width: 300px; height: 169px; overflow: hidden; position: relative; background: var(--bg-page);
+    /* overflow:hidden alone doesn't clip the composited (scaled) iframe layer,
+       so its square corners paint over the card's rounded border at high zoom */
+    clip-path: inset(0 round 13px 13px 0 0);
+  }
   .node .scaler { width: 1200px; height: 675px; transform: scale(.25); transform-origin: top left; }
   .node iframe { width: 1200px; height: 675px; border: 0; pointer-events: none; background: #000; }
   .node .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; }
@@ -111,19 +116,66 @@
   .node .build {
     position: absolute; inset: 0; display: none; flex-direction: column; align-items: center;
     justify-content: center; gap: 10px; background: var(--bg-subtle); color: var(--text-secondary); font-size: 12px;
+    border-radius: 13px;
   }
   .node.building .build { display: flex; }
   .node .build .req { max-width: 250px; text-align: center; color: var(--text-tertiary); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .node .build .cancel {
+  .node .build .cancel, .node .adj .cancel {
     margin-top: 2px; padding: 5px 14px; border-radius: var(--radius-full);
     border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-secondary);
     cursor: pointer; font-size: 11px; font-family: var(--font-sans); font-weight: var(--weight-medium);
     transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   }
-  .node .build .cancel:hover { background: var(--bg-subtle); border-color: var(--border-strong); color: var(--text-primary); }
+  .node .build .cancel:hover, .node .adj .cancel:hover { background: var(--bg-subtle); border-color: var(--border-strong); color: var(--text-primary); }
   .node .spin { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(128,128,128,0); } 50% { box-shadow: 0 0 0 3px var(--ring); } }
+
+  /* adjust-in-flight: the whole card re-weaves under one shimmer clock — a
+     sweep across the dimmed card, the same sweep on the rail's working chip,
+     and a centered layer carrying the tweak + Cancel. The current revision
+     stays faintly visible underneath: an adjust edits THIS design in place. */
+  .node .adj {
+    position: absolute; inset: 0; z-index: 4; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    border-radius: 13px; overflow: hidden; background: var(--bg-overlay);
+    color: var(--text-secondary); font-size: 12px;
+  }
+  .node.adjusting .adj { display: flex; }
+  .node .adj .tw { max-width: 250px; text-align: center; color: var(--text-tertiary); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .shimmer::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.09) 50%, transparent 60%);
+    background-size: 250% 100%;
+    animation: sweep 1.6s linear infinite;
+  }
+  @keyframes sweep { from { background-position: 200% 0; } to { background-position: -150% 0; } }
+
+  /* revision rail: adjusts don't branch — they stack as version chips hanging
+     off the node's bottom edge. Nodes with a single revision only offer the
+     "+" stub, revealed on hover/selection so the canvas stays quiet. */
+  .rail { position: absolute; top: 100%; left: 0; right: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; cursor: default; }
+  .rail .rl { width: 8px; height: 12px; border-left: 1px solid var(--border-strong); border-right: 1px solid var(--border-strong); }
+  .rail .chips { display: flex; gap: 4px; align-items: center; }
+  .rail.stub { opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out); }
+  .node:hover .rail.stub, .node.selected .rail.stub { opacity: 1; pointer-events: auto; }
+  .chip {
+    height: 22px; min-width: 27px; padding: 0 8px; border-radius: var(--radius-full);
+    border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-secondary);
+    font-size: 10.5px; font-family: var(--font-mono); font-weight: var(--weight-medium);
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-sm);
+    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  }
+  .chip:hover { border-color: var(--border-strong); color: var(--text-primary); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: var(--weight-semibold); }
+  .chip.add { border-style: dashed; color: var(--text-tertiary); font-family: var(--font-sans); font-size: 13px; }
+  .chip.add:hover { color: var(--text-primary); border-color: var(--border-strong); }
+  .chip.working { position: relative; overflow: hidden; border-style: dashed; gap: 3px; }
+  .chip.working i { width: 3px; height: 3px; border-radius: 50%; background: var(--text-secondary); animation: breathe 1.2s ease-in-out infinite; }
+  .chip.working i:nth-child(2) { animation-delay: .2s; }
+  .chip.working i:nth-child(3) { animation-delay: .4s; }
+  @keyframes breathe { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
 
   /* hud */
   #hud { position: fixed; top: 14px; left: 16px; z-index: 20; font-size: 12px; color: var(--text-secondary); pointer-events: none; display: flex; align-items: center; }
@@ -174,8 +226,43 @@
                 border-color var(--dur-snap) var(--ease-out);
   }
   #composer.composing { width: 412px; border-color: var(--border-strong); }
-  #composer .cmp-title { color: var(--text-secondary); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #composer .cmp-title b { color: var(--text-primary); font-weight: var(--weight-semibold); }
+
+  /* the panel opens straight onto the mode toggle — the selection ring already
+     says which node this is about, so there is no title line */
+  #cmpMode { display: flex; gap: 2px; padding: 3px; background: var(--bg-muted); border-radius: var(--radius-full); margin-bottom: 9px; }
+  #cmpMode button {
+    flex: 1; height: 26px; border-radius: var(--radius-full); border: none; background: none;
+    color: var(--text-secondary); cursor: pointer; font-size: 12px; font-family: var(--font-sans); font-weight: var(--weight-medium);
+    transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  }
+  #cmpMode button:hover:not(:disabled) { color: var(--text-primary); }
+  #cmpMode button.on { background: var(--pill-active); color: var(--text-primary); box-shadow: var(--shadow-sm); font-weight: var(--weight-semibold); }
+  #cmpMode button:disabled { opacity: .35; cursor: default; }
+
+  /* Reference images (pasted / dropped) ride above the field as thumbnails.
+     The row reserves no space until something is attached. */
+  .cmp-imgs { display: none; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  #composer.has-imgs .cmp-imgs { display: flex; }
+  .cmp-img {
+    position: relative; width: 44px; height: 44px; flex: none;
+    border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+    overflow: hidden; background: var(--bg-muted);
+  }
+  .cmp-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cmp-img.pending img { opacity: .35; }
+  .cmp-img .up {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  }
+  .cmp-img.pending .up { display: flex; }
+  .cmp-img .up i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+  .cmp-img .rm {
+    position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; padding: 0;
+    border: 0; border-radius: var(--radius-full); background: var(--bg-inverse); color: var(--text-inverse);
+    font-size: 9px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
+  }
+  .cmp-img:hover .rm { opacity: 1; }
+  #cmpField.dropping { border-color: var(--gray-400); box-shadow: 0 0 0 3px var(--input-glow); }
 
   /* The wrapper owns the height transition and clips; the textarea inside snaps
      straight to its final box with no transition of its own. Animating the
@@ -196,7 +283,12 @@
     font-size: 12px; font-family: var(--font-sans); line-height: 17px; padding: 7px 10px;
     white-space: pre; overflow-wrap: normal; word-break: normal;
   }
-  #composer.composing #cmpInput, #composer.composing #cmpMirror { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; }
+  /* the hint floats over the bottom-right corner — reserve a gutter under the
+     text so the last line never lands beneath it */
+  #composer.composing #cmpInput, #composer.composing #cmpMirror {
+    white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word;
+    padding-bottom: 25px;
+  }
   #cmpInput {
     position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
     margin: 0; border: 0; outline: none; background: transparent; resize: none; overflow: hidden;
@@ -219,7 +311,10 @@
   kbd.kb > svg { display: block; width: 11px; height: 11px; flex: none; }
   kbd.kb.txt { padding: 0 4px; font-family: var(--font-sans); font-size: 9px; line-height: 1; font-weight: var(--weight-medium); color: var(--text-secondary); }
   .cmp-hint {
-    position: absolute; right: 9px; bottom: 6px; z-index: 2;
+    position: absolute; right: 0; bottom: 0; z-index: 2;
+    padding: 5px 9px 6px 20px;
+    /* scrim, so lines scrolling past the bottom edge don't read through it */
+    background: linear-gradient(to right, transparent, var(--bg-subtle) 18px);
     display: inline-flex; align-items: center; font-size: 10px; line-height: 15px;
     color: var(--text-tertiary); pointer-events: none;
     opacity: 0; transform: translateY(3px);
@@ -266,7 +361,12 @@
   .cmp-note .dot { display: inline-block; width: 5px; height: 5px; border-radius: var(--radius-full); background: var(--text-primary); vertical-align: 1px; margin-right: 6px; }
   #cmpGo { flex: none; }
   #cmpGo:disabled { opacity: .45; cursor: default; }
-  #composer.offline #cmpField, #composer.offline #cmpCount { opacity: .5; pointer-events: none; }
+  #composer.offline #cmpField, #composer.offline #cmpCount, #composer.offline #cmpMode { opacity: .5; pointer-events: none; }
+  /* multi-select: the panel would sit on top of the very nodes being combined,
+     so it leaves the canvas and floats fixed at the bottom instead */
+  #composer.at-bottom {
+    left: 50%; top: auto; bottom: 18px; transform: translateX(-50%);
+  }
   /* docked inside the inspect overlay: centered just above the control bar */
   #composer.in-inspect {
     z-index: 45; width: 320px; left: 50%; top: auto;
@@ -342,7 +442,10 @@
   <canvas id="minimap" width="150" height="96"></canvas>
 
   <div id="composer" hidden>
-    <div class="cmp-title">Derive from <b id="cmpParent">—</b></div>
+    <div id="cmpMode">
+      <button type="button" data-m="derive" class="on">Derive</button><button type="button" data-m="adjust">Adjust</button>
+    </div>
+    <div class="cmp-imgs" id="cmpImgs"></div>
     <div id="cmpField">
       <div id="cmpMirror" aria-hidden="true"></div>
       <textarea id="cmpInput" rows="1" placeholder="Type something..."></textarea>
@@ -405,7 +508,9 @@ var fleetLive = false;
 var POS_KEY = 'composer-pos'; // rescoped per session+task on boot
 
 /* ---------- state ---------- */
-var state = { nodes: [], ghosts: [], camera: { x: 0, y: 0, scale: 0.8 }, selected: null, winner: null, inspectId: null };
+/* selected is an ordered list — shift+click grows it; a plain click collapses
+   it back to one. The last id is the anchor (composer placement, keyboard nav). */
+var state = { nodes: [], ghosts: [], camera: { x: 0, y: 0, scale: 0.8 }, selected: [], winner: null, inspectId: null };
 var cam = state.camera;
 var nodeEls = {};   // real + ghost elements, keyed by node id
 var drag = null;
@@ -421,7 +526,7 @@ var canvas = document.getElementById('canvas');
 var world  = document.getElementById('world');
 var edgesSvg = document.getElementById('edges');
 var composer = document.getElementById('composer');
-var cmpParent = document.getElementById('cmpParent');
+var cmpModeEl = document.getElementById('cmpMode');
 var cmpInput = document.getElementById('cmpInput');
 var cmpField = document.getElementById('cmpField');
 var cmpMirror = document.getElementById('cmpMirror');
@@ -431,6 +536,7 @@ var cmpN = document.getElementById('cmpN');
 var cmpMinus = document.getElementById('cmpMinus');
 var cmpPlus = document.getElementById('cmpPlus');
 var cmpNote = document.getElementById('cmpNote');
+var cmpImgs = document.getElementById('cmpImgs');
 var mini = document.getElementById('minimap');
 var inspect = document.getElementById('inspect');
 var ispName = document.getElementById('ispName');
@@ -450,6 +556,14 @@ var toastEl = document.getElementById('toast');
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 function allNodes() { return state.nodes.concat(state.ghosts); }
 function byId(id) { var a = allNodes(); for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i]; return null; }
+function isSelected(id) { return state.selected.indexOf(id) >= 0; }
+function selNodes() {
+  return state.selected.map(byId).filter(function (n) { return n && !n.building; });
+}
+function selPrimary() {
+  var s = selNodes();
+  return s.length ? s[s.length - 1] : null;
+}
 function screenToWorld(sx, sy) { return { x: (sx - cam.x) / cam.scale, y: (sy - cam.y) / cam.scale }; }
 function modelColor(m) {
   if (/opus/.test(m)) return '#e0aa5a';
@@ -569,11 +683,18 @@ function createNodeEl(n) {
     '<div class="preview"><div class="scaler"><iframe sandbox="allow-scripts" scrolling="no"></iframe></div>' +
     '<div class="build"><div class="spin"></div><span>building…</span><span class="req"></span>' +
     '<button class="cancel" type="button" title="Cancel this derive request">Cancel</button></div></div>' +
-    '<div class="foot"><span class="nm"></span><span class="mdl"><i></i><span class="mt"></span></span></div>';
+    '<div class="foot"><span class="nm"></span><span class="mdl"><i></i><span class="mt"></span></span></div>' +
+    '<div class="adj shimmer"><div class="spin"></div><span class="tw"></span>' +
+    '<button class="cancel" type="button" title="Cancel this adjust">Cancel</button></div>' +
+    '<div class="rail" hidden><span class="rl"></span><div class="chips"></div></div>';
   d.addEventListener('mousedown', function (e) {
     if (e.button !== 0) return;
     e.stopPropagation();
-    if (!n.building) select(n.id);
+    // shift+click grows / shrinks the multi-selection and never drags
+    if (!n.building && e.shiftKey) { toggleSelect(n.id); return; }
+    // an already-selected node keeps the group on mousedown so it can be
+    // dragged without collapsing; a still click collapses on mouseup
+    if (!n.building && !isSelected(n.id)) select(n.id);
     drag = { mode: 'node', id: n.id, lastX: e.clientX, lastY: e.clientY, moved: 0 };
   });
   d.addEventListener('dblclick', function (e) { e.stopPropagation(); if (!n.building) openInspect(n.id); });
@@ -583,6 +704,12 @@ function createNodeEl(n) {
   var cx = d.querySelector('.build .cancel');
   cx.addEventListener('mousedown', function (e) { e.stopPropagation(); });
   cx.addEventListener('click', function (e) { e.stopPropagation(); if (n.reqId) cancelRequest(n.reqId); });
+  var ax = d.querySelector('.adj .cancel');
+  ax.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+  ax.addEventListener('click', function (e) { e.stopPropagation(); if (n.adjusting) cancelRequest(n.adjusting.reqId); });
+  var rl = d.querySelector('.rail');
+  rl.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+  rl.addEventListener('dblclick', function (e) { e.stopPropagation(); });
   world.appendChild(d);
   nodeEls[n.id] = d;
   updateNodePos(n);
@@ -604,12 +731,82 @@ function updateNodePos(n) {
 }
 function updateNodeVisual(n) {
   var d = nodeEls[n.id];
-  d.classList.toggle('selected', state.selected === n.id);
-  d.classList.toggle('winner', state.winner === n.id);
+  d.classList.toggle('selected', isSelected(n.id));
+  d.classList.toggle('winner', winnerNodeId() === n.id);
   d.classList.toggle('building', !!n.building);
   d.querySelector('.nm').textContent = n.name;
   d.querySelector('.mt').textContent = n.model;
   d.querySelector('.mdl i').style.background = modelColor(n.model);
+}
+
+/* ---------- revisions (adjusts) ----------
+   An adjust variant (meta "adjust":true) is a REVISION of its parent, not a
+   branch: the whole parent-chain of adjust files folds into one node whose
+   rail shows v1·v2·… chips. state.winner is a FILE id — map it to its node. */
+var fileToNode = {}; // variant file -> the node (revision root) it belongs to
+function winnerNodeId() { return state.winner ? (fileToNode[state.winner] || state.winner) : null; }
+function activeRevId(n) { return n.revs ? n.revs[n.rev].id : n.id; }
+function setRev(n, i) {
+  n.rev = clamp(i, 0, n.revs.length - 1);
+  var r = n.revs[n.rev];
+  n.name = r.name; n.model = r.model; n.description = r.description; n.html = r.html; n.url = r.url;
+  var d = nodeEls[n.id];
+  if (d && n._shown !== r.id) {
+    n._shown = r.id;
+    var ifr = d.querySelector('iframe');
+    if (r.url) { ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin'); ifr.src = r.url; }
+    else { ifr.removeAttribute('src'); ifr.setAttribute('sandbox', 'allow-scripts'); ifr.srcdoc = r.html; }
+  }
+  updateNodeVisual(n);
+  renderRail(n);
+  if (state.inspectId === n.id) {
+    ispName.textContent = n.name;
+    ispDesc.textContent = n.description;
+    ispModel.textContent = n.model;
+    buildInspFrame(n);
+  }
+}
+function renderRail(n) {
+  var d = nodeEls[n.id];
+  if (!d || n.building) return;
+  var rail = d.querySelector('.rail');
+  var chips = rail.querySelector('.chips');
+  var many = n.revs && n.revs.length > 1;
+  var working = !!n.adjusting;
+  rail.hidden = false;
+  rail.classList.toggle('stub', !many && !working);
+  chips.innerHTML = '';
+  if (many) n.revs.forEach(function (r, i) {
+    var c = document.createElement('button');
+    c.className = 'chip' + (i === n.rev ? ' on' : '');
+    c.type = 'button';
+    c.textContent = 'v' + (i + 1);
+    c.title = r.description || r.name;
+    c.addEventListener('click', function (e) { e.stopPropagation(); setRev(n, i); });
+    chips.appendChild(c);
+  });
+  if (working) {
+    var w = document.createElement('button');
+    w.className = 'chip working shimmer';
+    w.type = 'button';
+    w.title = '“' + n.adjusting.text + '” — click to cancel';
+    w.innerHTML = '<i></i><i></i><i></i>';
+    w.addEventListener('click', function (e) { e.stopPropagation(); cancelRequest(n.adjusting.reqId); });
+    chips.appendChild(w);
+  } else {
+    var add = document.createElement('button');
+    add.className = 'chip add';
+    add.type = 'button';
+    add.title = 'Adjust — one small tweak';
+    add.textContent = '+';
+    add.addEventListener('click', function (e) {
+      e.stopPropagation();
+      select(n.id);
+      setCmpModeType('adjust');
+      cmpInput.focus();
+    });
+    chips.appendChild(add);
+  }
 }
 
 /* ---------- edges ---------- */
@@ -622,27 +819,44 @@ function edgePath(p, ch) {
 function renderEdges() {
   var s = '';
   allNodes().forEach(function (n) {
-    if (n.parentId == null) return;
-    var p = byId(n.parentId);
-    if (!p) return;
-    s += '<path class="edge' + (n.building ? ' ghostly' : '') + '" d="' + edgePath(p, n) + '"/>';
+    if (n.parentId != null) {
+      var p = byId(n.parentId);
+      if (p) s += '<path class="edge' + (n.building ? ' ghostly' : '') + '" d="' + edgePath(p, n) + '"/>';
+    }
+    // a multi-parent derive draws a ghostly strand from each extra parent too
+    (n.extraParents || []).forEach(function (pid) {
+      var xp = byId(pid);
+      if (xp) s += '<path class="edge ghostly" d="' + edgePath(xp, n) + '"/>';
+    });
   });
   edgesSvg.innerHTML = s;
 }
 
 /* ---------- selection ---------- */
 function select(id) {
-  state.selected = id;
+  state.selected = id == null ? [] : [id];
+  allNodes().forEach(updateNodeVisual);
+  syncComposer();
+}
+function toggleSelect(id) {
+  var i = state.selected.indexOf(id);
+  if (i >= 0) state.selected.splice(i, 1);
+  else state.selected.push(id);
   allNodes().forEach(updateNodeVisual);
   syncComposer();
 }
 function syncComposer() {
-  if (state.selected == null) { composer.hidden = true; return; }
-  var n = byId(state.selected);
-  if (!n || n.building) { composer.hidden = true; return; }
+  var sel = selNodes();
+  if (!sel.length) { composer.hidden = true; return; }
+  var n = sel[sel.length - 1]; // anchor next to the freshest selection
   composer.hidden = false;
-  cmpParent.textContent = n.name;
-  if (composer.classList.contains('in-inspect')) { composer.style.left = ''; composer.style.top = ''; return; }
+  // adjust targets exactly one node — a multi-selection falls back to derive
+  cmpModeEl.querySelector('[data-m="adjust"]').disabled = sel.length > 1;
+  if (sel.length > 1 && cmpModeType === 'adjust') setCmpModeType('derive');
+  if (composer.classList.contains('in-inspect')) { composer.classList.remove('at-bottom'); composer.style.left = ''; composer.style.top = ''; return; }
+  // combining several: float fixed at the bottom, clear of the selected nodes
+  composer.classList.toggle('at-bottom', sel.length > 1);
+  if (sel.length > 1) { composer.style.left = ''; composer.style.top = ''; return; }
   var sx = n.x * cam.scale + cam.x, sy = n.y * cam.scale + cam.y;
   // the panel's own width transition is in flight while composing, so place
   // against the target width rather than whatever this frame happens to measure
@@ -678,8 +892,7 @@ function navTo(n) {
   if (dx || dy) { cam.x += dx; cam.y += dy; applyCamera(); }
 }
 function navArrow(key) {
-  var cur = state.selected != null ? byId(state.selected) : null;
-  if (cur && cur.building) cur = null;
+  var cur = selPrimary();
   if (!cur) {
     navTo(navSort(state.nodes.filter(function (n) { return n.parentId == null; }))[0]);
     return;
@@ -702,43 +915,69 @@ function navArrow(key) {
 /* while inspecting, arrows retarget the overlay to the variant navigated to */
 function handleNavKey(key) {
   var inspecting = state.inspectId != null;
-  if (inspecting && state.selected !== state.inspectId) select(state.inspectId);
+  var p = selPrimary();
+  if (inspecting && (!p || p.id !== state.inspectId)) select(state.inspectId);
   navArrow(key);
-  if (inspecting && state.selected != null && state.selected !== state.inspectId) openInspect(state.selected);
+  p = selPrimary();
+  if (inspecting && p && p.id !== state.inspectId) openInspect(p.id);
 }
 
 /* ---------- server sync ---------- */
 function refreshVariants(announce) {
   return fetch(API + '/t/' + TASK + '/variants').then(function (r) { return r.json(); }).then(function (list) {
+    // fold adjust chains into their revision root: one node, many revisions
+    var map = {};
+    list.forEach(function (v) { map[v.id] = v; });
+    function rootIdOf(id) {
+      var v = map[id], guard = 0;
+      while (v && v.adjust && v.parent && map[v.parent] && guard++ < 100) v = map[v.parent];
+      return v ? v.id : id;
+    }
+    var groups = {}, order = [];
+    fileToNode = {};
+    list.forEach(function (v) {
+      var rid = rootIdOf(v.id);
+      fileToNode[v.id] = rid;
+      if (!groups[rid]) { groups[rid] = []; order.push(rid); }
+      groups[rid].push(v);
+    });
     var seen = {};
     var added = 0;
     var rootIdx = state.nodes.filter(function (n) { return n.parentId == null; }).length;
-    list.forEach(function (v) {
-      seen[v.id] = true;
-      var existing = byId(v.id);
+    order.forEach(function (rid) {
+      seen[rid] = true;
+      var revs = groups[rid];
+      var root = map[rid] || revs[0];
+      var parentId = root.parent ? (fileToNode[root.parent] || root.parent) : null;
+      var existing = byId(rid);
       if (existing) {
-        existing.name = v.name; existing.model = v.model; existing.description = v.description;
-        existing.parentId = v.parent; existing.html = v.html; existing.url = v.url;
-        updateNodeVisual(existing);
+        var grew = revs.length - (existing.revs ? existing.revs.length : 1);
+        existing.revs = revs;
+        existing.parentId = parentId;
+        // a fresh revision becomes the shown one; otherwise stay where the user was
+        setRev(existing, grew > 0 ? revs.length - 1 : existing.rev || 0);
+        if (grew > 0) added += grew;
         return;
       }
-      var pos = savedPos[v.id];
+      var pos = savedPos[rid];
       if (!pos) {
-        var parent = v.parent ? byId(v.parent) : null;
+        var parent = parentId ? byId(parentId) : null;
         pos = parent ? (adoptGhostSlot(parent.id) || placeNewChild(parent)) : placeRoot(rootIdx++);
       }
-      var n = {
-        id: v.id, name: v.name, model: v.model, description: v.description,
-        parentId: v.parent, html: v.html, url: v.url, x: pos.x, y: pos.y, building: false
-      };
+      var n = { id: rid, revs: revs, rev: revs.length - 1, parentId: parentId, x: pos.x, y: pos.y, building: false };
+      var r = revs[n.rev];
+      n.name = r.name; n.model = r.model; n.description = r.description; n.html = r.html; n.url = r.url;
+      n._shown = r.id;
       state.nodes.push(n);
       createNodeEl(n);
-      added++;
+      renderRail(n);
+      added += revs.length;
     });
     state.nodes = state.nodes.filter(function (n) {
       if (seen[n.id]) return true;
       removeNodeEl(n.id);
-      if (state.selected === n.id) select(null);
+      var si = state.selected.indexOf(n.id);
+      if (si >= 0) { state.selected.splice(si, 1); syncComposer(); }
       return false;
     });
     renderEdges();
@@ -759,15 +998,15 @@ function refreshRequests() {
       state.winner = w;
       allNodes().forEach(updateNodeVisual);
       if (state.inspectId) {
-        ispPick.textContent = state.winner === state.inspectId ? 'Winner ✓' : 'Pick this one';
-        ispPick.classList.toggle('on', state.winner === state.inspectId);
+        ispPick.textContent = winnerNodeId() === state.inspectId ? 'Winner ✓' : 'Pick this one';
+        ispPick.classList.toggle('on', winnerNodeId() === state.inspectId);
       }
     }
     // ghost nodes for open derive requests (those that carry a count)
     var wanted = {};
     reqs.forEach(function (rq) {
       if (rq.status === 'done' || rq.status === 'cancelled' || !rq.count || !rq.variants || !rq.variants.length) return;
-      var parent = byId(rq.variants[0]);
+      var parent = byId(fileToNode[rq.variants[0]] || rq.variants[0]);
       if (!parent || parent.building) return;
       for (var i = ghostFill[rq.id] || 0; i < rq.count; i++) {
         var gid = 'ghost:' + rq.id + ':' + i;
@@ -776,7 +1015,9 @@ function refreshRequests() {
         var pos = placeChild(parent, i, rq.count);
         var g = {
           id: gid, name: 'building…', model: 'fleet', description: '',
-          parentId: parent.id, html: '', x: pos.x, y: pos.y, building: true, reqText: rq.text, reqId: rq.id
+          parentId: parent.id,
+          extraParents: rq.variants.slice(1).map(function (f) { return fileToNode[f] || f; }),
+          html: '', x: pos.x, y: pos.y, building: true, reqText: rq.text, reqId: rq.id
         };
         state.ghosts.push(g);
         createNodeEl(g);
@@ -786,6 +1027,24 @@ function refreshRequests() {
       if (wanted[g.id]) return true;
       removeNodeEl(g.id);
       return false;
+    });
+    // open adjust requests shimmer their node in place — no ghost, no branch
+    var adjWanted = {};
+    reqs.forEach(function (rq) {
+      if (rq.type !== 'adjust' || rq.status === 'done' || rq.status === 'cancelled' || !rq.variants || !rq.variants.length) return;
+      var nid = fileToNode[rq.variants[0]] || rq.variants[0];
+      // show just the tweak — the "Adjust "name" — " preamble is for the fleet
+      if (!adjWanted[nid]) adjWanted[nid] = { reqId: rq.id, text: rq.text.replace(/^Adjust "[^"]*" — /, '') };
+    });
+    state.nodes.forEach(function (n) {
+      var a = adjWanted[n.id] || null;
+      var changed = (!!a !== !!n.adjusting) || (a && n.adjusting && a.reqId !== n.adjusting.reqId);
+      n.adjusting = a;
+      var d = nodeEls[n.id];
+      if (!d) return;
+      d.classList.toggle('adjusting', !!a);
+      if (a) d.querySelector('.adj .tw').textContent = '“' + a.text + '”';
+      if (changed) renderRail(n);
     });
     renderEdges();
     renderMinimap();
@@ -800,10 +1059,11 @@ function cancelRequest(reqId) {
   });
 }
 
-function sendRequest(text, variantIds, count, type) {
+function sendRequest(text, variantIds, count, type, images) {
   var body = { text: text, variants: variantIds };
   if (count) body.count = count;
   if (type) body.type = type;
+  if (images && images.length) body.images = images;
   return fetch(API + '/t/' + TASK + '/requests', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -813,18 +1073,42 @@ function sendRequest(text, variantIds, count, type) {
 
 /* ---------- derive (core) ---------- */
 function doDerive() {
-  var p = byId(state.selected);
-  if (!p || p.building) return;
+  var parents = selNodes();
+  if (!parents.length) return;
   if (!fleetLive) { cmpShowNote('Fleet offline — run /composer to reconnect.'); return; }
+  if (!cmpImagesReady()) { cmpShowNote('Still uploading an image…', 2600); return; }
   var req = cmpInput.value.trim();
-  var text = 'Derive ' + cmpCount + ' new variant' + (cmpCount > 1 ? 's' : '') + ' from "' + p.name + '"' + (req ? ' — ' + req : '');
-  sendRequest(text, [p.id], cmpCount, 'derive').then(function () {
+  var imgs = cmpImages.map(function (i) { return i.file; });
+  var names = parents.map(function (p) { return '"' + p.name + '"'; }).join(' + ');
+  var text = 'Derive ' + cmpCount + ' new variant' + (cmpCount > 1 ? 's' : '') +
+    (parents.length > 1 ? ' combining ' + names : ' from ' + names) + (req ? ' — ' + req : '') +
+    (imgs.length ? ' (see the ' + (imgs.length > 1 ? imgs.length + ' attached reference images' : 'attached reference image') + ')' : '');
+  // derive from what is on screen: the ACTIVE revision of each parent
+  var ids = parents.map(activeRevId);
+  sendRequest(text, ids, cmpCount, 'derive', imgs).then(function () {
     cmpInput.value = '';
+    cmpClearImages();
     cmpLayout(true);   // collapse straight back to the bare chip
     cmpShowNote('<i class="dot"></i>Sent · ' + cmpCount + ' variant' + (cmpCount > 1 ? 's' : ''), 3800);
     refreshRequests();
   });
 }
+
+/* ---------- adjust (same design, one small tweak) ---------- */
+function doAdjust() {
+  var n = selPrimary();
+  if (!n) return;
+  if (!fleetLive) { cmpShowNote('Fleet offline — run /composer to reconnect.'); return; }
+  var req = cmpInput.value.trim();
+  if (!req) { cmpShowNote('Describe the tweak first.', 2600); return; }
+  sendRequest('Adjust "' + n.name + '" — ' + req, [activeRevId(n)], null, 'adjust').then(function () {
+    cmpInput.value = '';
+    cmpLayout(true);
+    cmpShowNote('<i class="dot"></i>Sent · adjust', 3800);
+    refreshRequests();
+  });
+}
+function doSend() { if (cmpModeType === 'adjust') doAdjust(); else doDerive(); }
 
 /* ---------- inspect ---------- */
 function openInspect(id) {
@@ -835,8 +1119,8 @@ function openInspect(id) {
   ispName.textContent = n.name;
   ispDesc.textContent = n.description;
   ispModel.textContent = n.model;
-  ispPick.textContent = state.winner === id ? 'Winner ✓' : 'Pick this one';
-  ispPick.classList.toggle('on', state.winner === id);
+  ispPick.textContent = winnerNodeId() === id ? 'Winner ✓' : 'Pick this one';
+  ispPick.classList.toggle('on', winnerNodeId() === id);
   buildInspFrame(n);
   setAspect(currentAspect);
 }
@@ -880,7 +1164,7 @@ function closeInspect() {
 /* the derive panel docks into the inspect overlay so requests can be sent from there */
 function openInspectDerive() {
   if (state.inspectId == null) return;
-  if (state.selected !== state.inspectId) select(state.inspectId);
+  select(state.inspectId); // docked derive is about the inspected variant only
   composer.classList.add('in-inspect');
   cmpLayout(true);   // docked, the resting field is wider — re-decide the state
   syncComposer();
@@ -911,14 +1195,15 @@ function setWinner(id) {
   if (!fleetLive) { toast('Fleet offline — run /composer in the project to reconnect'); return; }
   var n = byId(id);
   if (!n) return;
-  state.winner = id; // optimistic; server truth arrives via refreshRequests
+  var file = activeRevId(n); // the winner is the revision on screen
+  state.winner = file; // optimistic; server truth arrives via refreshRequests
   allNodes().forEach(updateNodeVisual);
   renderMinimap();
   if (state.inspectId) {
-    ispPick.textContent = state.winner === state.inspectId ? 'Winner ✓' : 'Pick this one';
-    ispPick.classList.toggle('on', state.winner === state.inspectId);
+    ispPick.textContent = winnerNodeId() === state.inspectId ? 'Winner ✓' : 'Pick this one';
+    ispPick.classList.toggle('on', winnerNodeId() === state.inspectId);
   }
-  sendRequest('Pick "' + n.name + '" — implement this design.', [id], null, 'pick').then(refreshRequests);
+  sendRequest('Pick "' + n.name + '" — implement this design.', [file], null, 'pick').then(refreshRequests);
 }
 
 /* ---------- minimap ---------- */
@@ -941,7 +1226,7 @@ function renderMinimap() {
   var ox = pad - minx * s + (W - pad * 2 - bw * s) / 2;
   var oy = pad - miny * s + (H - pad * 2 - bh * s) / 2;
   a.forEach(function (n) {
-    ctx.fillStyle = n.id === state.winner ? '#f5f5f5' : (n.building ? '#525252' : '#a3a3a3');
+    ctx.fillStyle = n.id === winnerNodeId() ? '#f5f5f5' : (n.building ? '#525252' : '#a3a3a3');
     ctx.fillRect(ox + n.x * s, oy + n.y * s, Math.max(2, NODE_W * s), Math.max(2, NODE_H * s));
   });
   ctx.strokeStyle = 'rgba(245,245,245,.7)';
@@ -966,9 +1251,14 @@ window.addEventListener('mousemove', function (e) {
     if (n) { n.x += dx / cam.scale; n.y += dy / cam.scale; updateNodePos(n); renderEdges(); syncComposer(); renderMinimap(); }
   }
 });
-window.addEventListener('mouseup', function () {
+window.addEventListener('mouseup', function (e) {
   if (drag && drag.mode === 'pan' && drag.moved < 4) select(null);
-  if (drag && drag.mode === 'node') savePositions();
+  if (drag && drag.mode === 'node') {
+    // a plain still click on a member of a multi-selection collapses to it
+    var n = byId(drag.id);
+    if (drag.moved < 4 && !e.shiftKey && n && !n.building) select(drag.id);
+    savePositions();
+  }
   drag = null;
 });
 canvas.addEventListener('wheel', function (e) {
@@ -1052,7 +1342,7 @@ function cmpSetMode(next, immediate) {
     // once the snap has landed, later height changes get the quieter transition
     cmpSettle = setTimeout(function () { if (cmpMode === 'composing') composer.classList.add('settled'); }, 330);
   }
-  cmpInput.placeholder = next === 'composing' ? 'Describe the change…' : 'Type something...';
+  cmpApplyPlaceholder();
   cmpSyncInline();
   syncComposer();
   // the panel's box is still animating; re-place once it has settled
@@ -1095,7 +1385,31 @@ function cmpLayout(immediate) {
 /* the only written hint lives in the composing row, so it arrives with the snap */
 function cmpSyncInline() {
   cmpInline.innerHTML = (cmpMode === 'composing' && cmpInput.value.trim())
-    ? '<kbd class="kb txt">Enter</kbd>&nbsp; to derive' : '';
+    ? '<kbd class="kb txt">Enter</kbd>&nbsp; to ' + (cmpModeType === 'adjust' ? 'adjust' : 'derive') : '';
+}
+
+/* ---------- the Derive | Adjust mode toggle ----------
+   The active segment is the only mode signal — no accent shift, no title.
+   Adjust is the featherweight path: one node, one tweak, no count. */
+var cmpModeType = 'derive';
+function cmpApplyPlaceholder() {
+  cmpInput.placeholder = cmpModeType === 'adjust' ? 'One tweak — e.g. 600ms not 200ms'
+    : (cmpMode === 'composing' ? 'Describe the change…' : 'Type something...');
+}
+function setCmpModeType(m) {
+  cmpModeType = m;
+  var btns = cmpModeEl.children;
+  for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-m') === m);
+  document.getElementById('cmpCount').hidden = m === 'adjust';
+  cmpGo.textContent = m === 'adjust' ? 'Adjust' : 'Derive';
+  cmpApplyPlaceholder();
+  cmpSyncInline();
+}
+for (var mi = 0; mi < cmpModeEl.children.length; mi++) {
+  cmpModeEl.children[mi].addEventListener('click', function () {
+    setCmpModeType(this.getAttribute('data-m'));
+    cmpInput.focus();
+  });
 }
 
 /* The note reserves no row at rest. Transient messages open it for a beat and
@@ -1116,14 +1430,82 @@ function cmpHideNote() {
   cmpNoteClear = setTimeout(function () { cmpNote.innerHTML = ''; }, 340);
 }
 
+/* ---------- reference images ----------
+   Paste or drop an image into the composer: it uploads into the task's
+   images/ folder right away (content-addressed, so repeats are free) and the
+   derive request carries the stored paths for the fleet agent to look at. */
+var cmpImages = []; // { file: 'images/<hash>.<ext>' | null while uploading, el }
+function cmpImagesReady() {
+  return cmpImages.every(function (i) { return i.file; });
+}
+function cmpRemoveImage(item) {
+  var i = cmpImages.indexOf(item);
+  if (i >= 0) cmpImages.splice(i, 1);
+  item.el.remove();
+  composer.classList.toggle('has-imgs', !!cmpImages.length);
+  syncComposer();
+}
+function cmpClearImages() { cmpImages.slice().forEach(cmpRemoveImage); }
+function cmpAddImage(blob) {
+  if (!/^image\/(png|jpeg|gif|webp)$/.test(blob.type)) {
+    cmpShowNote('Images only — PNG, JPEG, GIF or WebP.', 3200);
+    return;
+  }
+  var item = { file: null, el: document.createElement('div') };
+  item.el.className = 'cmp-img pending';
+  var img = document.createElement('img');
+  img.src = URL.createObjectURL(blob);
+  var up = document.createElement('span');
+  up.className = 'up';
+  up.innerHTML = '<i></i>';
+  var rm = document.createElement('button');
+  rm.className = 'rm';
+  rm.type = 'button';
+  rm.title = 'Remove image';
+  rm.textContent = '✕';
+  rm.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+  rm.addEventListener('click', function (e) { e.stopPropagation(); cmpRemoveImage(item); });
+  item.el.appendChild(img); item.el.appendChild(up); item.el.appendChild(rm);
+  cmpImgs.appendChild(item.el);
+  cmpImages.push(item);
+  composer.classList.add('has-imgs');
+  syncComposer(); // the chip row changed the panel's height
+  fetch(API + '/t/' + TASK + '/images', { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob })
+    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (d) { item.file = d.file; item.el.classList.remove('pending'); })
+    .catch(function () {
+      cmpRemoveImage(item);
+      cmpShowNote('Image upload failed.', 3200);
+    });
+}
+cmpInput.addEventListener('paste', function (e) {
+  var files = e.clipboardData && e.clipboardData.files;
+  if (!files || !files.length) return;
+  e.preventDefault();
+  for (var i = 0; i < files.length; i++) cmpAddImage(files[i]);
+});
+composer.addEventListener('dragover', function (e) { e.preventDefault(); cmpField.classList.add('dropping'); });
+composer.addEventListener('dragleave', function (e) { if (!composer.contains(e.relatedTarget)) cmpField.classList.remove('dropping'); });
+composer.addEventListener('drop', function (e) {
+  e.preventDefault();
+  cmpField.classList.remove('dropping');
+  var files = e.dataTransfer && e.dataTransfer.files;
+  if (!files) return;
+  for (var i = 0; i < files.length; i++) cmpAddImage(files[i]);
+});
+
 cmpInput.addEventListener('input', function () { cmpHideNote(); cmpLayout(); });
 cmpInput.addEventListener('focus', function () { cmpField.classList.add('hot'); });
 cmpInput.addEventListener('blur', function () { cmpField.classList.remove('hot'); });
 
-cmpGo.addEventListener('click', doDerive);
+cmpGo.addEventListener('click', doSend);
 cmpInput.addEventListener('keydown', function (e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doDerive(); }
-  // the count shortcuts only apply to an empty field — mid-sentence they'd eat the character
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
+  // shift is the deliberate form — it works mid-sentence, since "_" and "+" are
+  // rare enough in a prompt that holding shift can only have meant the counter
+  else if (e.shiftKey && (e.key === '+' || e.key === '=')) { e.preventDefault(); setCmpCount(cmpCount + 1); }
+  else if (e.shiftKey && (e.key === '_' || e.key === '-')) { e.preventDefault(); setCmpCount(cmpCount - 1); }
+  // bare -/+ only apply to an empty field — mid-sentence they'd eat the character
   else if ((e.key === '+' || e.key === '=') && !cmpInput.value) { e.preventDefault(); setCmpCount(cmpCount + 1); }
   else if ((e.key === '-' || e.key === '_') && !cmpInput.value) { e.preventDefault(); setCmpCount(cmpCount - 1); }
 });
@@ -1166,14 +1548,14 @@ window.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') { escAction(); }
   else if (e.key.indexOf('Arrow') === 0) { e.preventDefault(); handleNavKey(e.key); }
   else if ((e.key === 'Enter' || e.key === ' ') && state.inspectId == null) {
-    var open = state.selected != null ? byId(state.selected) : null;
-    if (open && !open.building) { e.preventDefault(); openInspect(open.id); }
+    var open = selPrimary();
+    if (open) { e.preventDefault(); openInspect(open.id); }
   }
   else if (e.key === 'i' || e.key === 'I') {
     if (state.inspectId != null) { e.preventDefault(); openInspectDerive(); return; }
-    var sel = state.selected != null ? byId(state.selected) : null;
-    if (!sel) { navArrow('ArrowRight'); sel = byId(state.selected); } // nothing selected: start at the first root
-    if (sel && !sel.building) { e.preventDefault(); cmpInput.focus(); }
+    var sel = selPrimary();
+    if (!sel) { navArrow('ArrowRight'); sel = selPrimary(); } // nothing selected: start at the first root
+    if (sel) { e.preventDefault(); cmpInput.focus(); }
   }
   else if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomBy(1.2); }
   else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(1 / 1.2); }
