@@ -322,7 +322,7 @@ const server = http.createServer(async (req, res) => {
           status: "pending",
         };
         if (images.length) entry.images = images;
-        if (["derive", "pick", "feedback"].includes(b.type)) entry.type = b.type;
+        if (["derive", "adjust", "pick", "feedback"].includes(b.type)) entry.type = b.type;
         // derive requests carry how many children to build; the board renders
         // that many ghost nodes while the request is open
         if (Number.isInteger(b.count) && b.count > 0) entry.count = Math.min(b.count, 5);
