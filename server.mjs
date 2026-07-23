@@ -211,7 +211,8 @@ const server = http.createServer(async (req, res) => {
   // board UI for a session
   if ((m = p.match(/^\/b\/([A-Za-z0-9_-]+)\/?$/))) {
     if (!registry[m[1]]) { res.writeHead(404); return res.end("unknown session"); }
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    // read fresh + no-cache: editing index.html and reloading must be enough
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
     return res.end(fs.readFileSync(path.join(ROOT, "index.html")));
   }
 

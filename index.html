@@ -108,7 +108,10 @@
   .node.winner { border-color: var(--accent); }
   .node.building { cursor: default; border-style: dashed; border-color: var(--border-strong); animation: pulse 1.6s ease-in-out infinite; }
   .node .preview {
-    width: 300px; height: 169px; overflow: hidden; position: relative; background: var(--bg-page);
+    /* width: auto, not 300px — the node is border-box, so a hard 300 overflows
+       its content box by the two 1px borders and the opaque iframe paints over
+       the right border and the top-right arc */
+    width: auto; height: 169px; overflow: hidden; position: relative; background: var(--bg-page);
     /* overflow:hidden alone doesn't clip the composited (scaled) iframe layer,
        so its square corners paint over the card's rounded border at high zoom */
     clip-path: inset(0 round 13px 13px 0 0);
@@ -116,19 +119,13 @@
   .node .scaler { width: 1200px; height: 675px; transform: scale(.25); transform-origin: top left; }
   .node iframe { width: 1200px; height: 675px; border: 0; pointer-events: none; background: #000; }
   .node .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; }
+  .node .ttl { display: flex; align-items: center; gap: 5px; min-width: 0; }
   .node .nm { font-size: 12.5px; color: var(--text-primary); font-weight: var(--weight-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .node .mdl { display: flex; align-items: center; gap: 5px; flex: none; font-size: 10.5px; color: var(--text-secondary); }
   .node .mdl i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
-  .node .crown { position: absolute; top: 6px; left: 8px; color: var(--accent); font-size: 15px; display: none; z-index: 3; text-shadow: 0 1px 3px rgba(0,0,0,.55); }
+  /* the crown rides the title, not the preview — nothing overlaps the variant */
+  .node .crown { color: var(--accent); font-size: 13px; line-height: 1; flex: none; display: none; }
   .node.winner .crown { display: block; }
-  .node .expand {
-    position: absolute; top: 6px; right: 6px; z-index: 3; width: 24px; height: 24px;
-    border: 1px solid var(--border-default); border-radius: var(--radius-full); background: var(--bg-surface); color: var(--text-secondary); cursor: pointer;
-    opacity: 0; transition: opacity var(--dur-fast) var(--ease-out), background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
-    font-size: 12px; line-height: 1; display: flex; align-items: center; justify-content: center;
-  }
-  .node .expand:hover { background: var(--bg-subtle); border-color: var(--border-strong); color: var(--text-primary); }
-  .node:hover .expand { opacity: 1; }
   .node .build {
     position: absolute; inset: 0; display: none; flex-direction: column; align-items: center;
     justify-content: center; gap: 10px; background: var(--bg-subtle); color: var(--text-secondary); font-size: 12px;
@@ -756,12 +753,10 @@ function createNodeEl(n) {
   d.className = 'node';
   d.style.width = NODE_W + 'px';
   d.innerHTML =
-    '<div class="crown">♔</div>' +
-    '<button class="expand" title="Expand">⤢</button>' +
     '<div class="preview"><div class="scaler"><iframe sandbox="allow-scripts" scrolling="no"></iframe></div>' +
     '<div class="build"><div class="spin"></div><span>building…</span><span class="req"></span>' +
     '<button class="cancel" type="button" title="Cancel this derive request">Cancel</button></div></div>' +
-    '<div class="foot"><span class="nm"></span><span class="mdl"><i></i><span class="mt"></span></span></div>' +
+    '<div class="foot"><span class="ttl"><span class="crown">♔</span><span class="nm"></span></span><span class="mdl"><i></i><span class="mt"></span></span></div>' +
     '<div class="adj shimmer"><div class="spin"></div><span class="tw"></span>' +
     '<button class="cancel" type="button" title="Cancel this adjust">Cancel</button></div>' +
     '<div class="rail" hidden><span class="rl"></span><div class="chips"></div></div>';
@@ -776,9 +771,6 @@ function createNodeEl(n) {
     drag = { mode: 'node', id: n.id, lastX: e.clientX, lastY: e.clientY, moved: 0 };
   });
   d.addEventListener('dblclick', function (e) { e.stopPropagation(); if (!n.building) openInspect(n.id); });
-  var ex = d.querySelector('.expand');
-  ex.addEventListener('mousedown', function (e) { e.stopPropagation(); });
-  ex.addEventListener('click', function (e) { e.stopPropagation(); if (!n.building) openInspect(n.id); });
   var cx = d.querySelector('.build .cancel');
   cx.addEventListener('mousedown', function (e) { e.stopPropagation(); });
   cx.addEventListener('click', function (e) { e.stopPropagation(); if (n.reqId) cancelRequest(n.reqId); });
