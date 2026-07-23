@@ -801,11 +801,13 @@ function placeNewChild(parent) {
 }
 
 /* ---------- organize ---------- */
-/* One tidy tree over the whole board: every subtree is given exactly the width
-   it needs, so no two branches can ever overlap, and each parent rides centred
-   above its own children. Depth is the generation — a variant always sits one
-   row under the variant it came from. Ghost slots lay out with the rest, so a
-   row still building keeps the shape it will have once it lands.
+/* One tidy tree over the whole board, packed by contours: a sibling subtree
+   slides left until its nearest card — at any depth — sits one gap from its
+   neighbour, so a narrow chain tucks under a wide branch instead of pushing
+   it away. Each parent rides centred over its own children. Depth is the
+   generation — a variant always sits one row under the variant it came from.
+   Ghost slots lay out with the rest, so a row still building keeps the shape
+   it will have once it lands.
    The order the user already sees (left to right) is the order kept. */
 var ORG_HGAP = 60, ORG_VGAP = 140, ORG_ROOT_GAP = 120, ORG_X0 = 60, ORG_Y0 = 90;
 function organizeLayout() {
@@ -823,7 +825,7 @@ function organizeLayout() {
   Object.keys(kids).forEach(function (k) { kids[k].sort(leftToRight); });
 
   // walk into a strictly acyclic tree first: a bad parent chain must not be
-  // able to spin the width pass forever
+  // able to spin the layout pass forever
   var visited = {}, tree = {};
   function build(n) {
     visited[n.id] = 1;
@@ -835,22 +837,43 @@ function organizeLayout() {
   roots.forEach(function (r) { if (!visited[r.id]) build(r); });
   all.forEach(function (n) { if (!visited[n.id]) { roots.push(n); build(n); } });
 
-  var w = {};
-  function measure(n) {
-    var ch = tree[n.id], span = 0;
-    ch.forEach(function (c) { span += measure(c) + ORG_HGAP; });
-    return (w[n.id] = Math.max(NODE_W, span - (ch.length ? ORG_HGAP : 0)));
+  // each subtree reports its left/right edge per depth row (L[d]..R[d]) plus
+  // every node's x relative to the subtree; packing two subtrees is then just
+  // the smallest shift that clears the gap on every row both of them reach
+  function pack(into, s, gap) {
+    var shift = 0, d;
+    if (into.R) for (d = 0; d < Math.min(into.R.length, s.L.length); d++)
+      shift = Math.max(shift, into.R[d] + gap - s.L[d]);
+    for (var k in s.pos) into.pos[k] = s.pos[k] + shift;
+    if (!into.R) { into.L = s.L.slice(); into.R = s.R.slice(); }
+    else for (d = 0; d < s.L.length; d++) {
+      if (d >= into.L.length) into.L[d] = s.L[d] + shift;
+      into.R[d] = s.R[d] + shift;
+    }
+    return shift;
   }
+  function layout(n) {
+    var ch = tree[n.id], posr = {};
+    posr[n.id] = 0;
+    if (!ch.length) return { pos: posr, L: [0], R: [NODE_W] };
+    var row = { pos: posr, L: null, R: null };
+    ch.forEach(function (c) { pack(row, layout(c), ORG_HGAP); });
+    var px = (posr[ch[0].id] + posr[ch[ch.length - 1].id]) / 2;
+    posr[n.id] = px;
+    row.L.unshift(px); row.R.unshift(px + NODE_W);
+    return row;
+  }
+
+  var depth = {};
+  function setDepth(n, d) { depth[n.id] = d; tree[n.id].forEach(function (c) { setDepth(c, d + 1); }); }
+  var forest = { pos: {}, L: null, R: null };
+  roots.forEach(function (r) { setDepth(r, 0); pack(forest, layout(r), ORG_ROOT_GAP); });
+  var minX = Infinity;
+  Object.keys(forest.pos).forEach(function (k) { minX = Math.min(minX, forest.pos[k]); });
   var pos = {};
-  function place(n, left, depth) {
-    var ch = tree[n.id], span = w[n.id], inner = 0;
-    pos[n.id] = { x: ORG_X0 + left + (span - NODE_W) / 2, y: ORG_Y0 + depth * (NODE_H + ORG_VGAP) };
-    ch.forEach(function (c) { inner += w[c.id] + ORG_HGAP; });
-    var cx = left + (span - (inner - ORG_HGAP)) / 2;
-    ch.forEach(function (c) { place(c, cx, depth + 1); cx += w[c.id] + ORG_HGAP; });
-  }
-  var x = 0;
-  roots.forEach(function (r) { measure(r); place(r, x, 0); x += w[r.id] + ORG_ROOT_GAP; });
+  all.forEach(function (n) {
+    pos[n.id] = { x: ORG_X0 + forest.pos[n.id] - minX, y: ORG_Y0 + depth[n.id] * (NODE_H + ORG_VGAP) };
+  });
   return pos;
 }
 
