@@ -7,5 +7,8 @@
   },
   "composer": {
     "dir": "/Users/fagnersales/work/composer/.composer"
+  },
+  "roblox-auto-delivery": {
+    "dir": "/Users/fagnersales/prototype/roblox-auto-delivery/.composer"
   }
 }

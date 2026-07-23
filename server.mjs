@@ -57,7 +57,11 @@ function loadVariants(name, task) {
     .filter((f) => f.endsWith(".html"))
     .sort()
     .map((file) => {
-      const html = fs.readFileSync(path.join(dir, file), "utf8");
+      const full = path.join(dir, file);
+      const html = fs.readFileSync(full, "utf8");
+      // when the file first appeared — the board matches a landed variant to the
+      // open iterate request that asked for it, so ghost slots survive a reload
+      const st = fs.statSync(full);
       let meta = {};
       const m = html.match(/<!--\s*variant-meta\s+({[\s\S]*?})\s*-->/);
       if (m) {
@@ -71,8 +75,10 @@ function loadVariants(name, task) {
         parent: meta.parent || null,
         // a combine names every parent it was mixed from; parent stays the primary one
         parents: Array.isArray(meta.parents) ? meta.parents.filter((p) => typeof p === "string") : null,
-        adjust: meta.adjust === true, // adjust revisions fold into their root node's rail instead of branching
+        tweak: meta.tweak === true, // tweak revisions fold into their root node's rail instead of branching
         url: meta.url || null, // url variants render a live route instead of the file body
+        // min: a copied / restored tree keeps its mtimes but is born now
+        ts: new Date(Math.min(st.birthtimeMs || Infinity, st.mtimeMs)).toISOString(),
         html,
       };
     });
@@ -324,8 +330,8 @@ const server = http.createServer(async (req, res) => {
           status: "pending",
         };
         if (images.length) entry.images = images;
-        if (["derive", "adjust", "pick", "feedback"].includes(b.type)) entry.type = b.type;
-        // derive requests carry how many children to build; the board renders
+        if (["iterate", "tweak", "pick", "feedback"].includes(b.type)) entry.type = b.type;
+        // iterate requests carry how many children to build; the board renders
         // that many ghost nodes while the request is open
         if (Number.isInteger(b.count) && b.count > 0) entry.count = Math.min(b.count, 5);
         appendRequest(name, task, entry);

@@ -2,7 +2,7 @@
 
 Hub viewer for the `/composer` skill: agents generate variants of a UI
 into the current project's `.composer/<task>/` folder; the user
-compares them on an infinite pan/zoom canvas, derives new ones from a chosen
+compares them on an infinite pan/zoom canvas, iterates new ones from a chosen
 parent, and picks a winner — all from the browser, no chat round-trip.
 
 This repo is the **tool only** (`server.mjs` + `index.html`, zero deps,
@@ -20,25 +20,25 @@ session→dir registry.
    everything (that's the user's generation history, together with the
    board's task switcher).
 3. Variants are `NN-slug.html` files starting with a
-   `<!--variant-meta {"name","model","description","parent"?,"parents"?,"adjust"?,"url"?}-->`
+   `<!--variant-meta {"name","model","description","parent"?,"parents"?,"tweak"?,"url"?}-->`
    comment. `parent` draws the lineage edge (a combine also carries
    `parents`: every parent it was mixed from, `parent` first — the extras
-   draw ghostly strands); `adjust:true` makes the file a
+   draw ghostly strands); `tweak:true` makes the file a
    revision of its parent instead (folded into that node's v1·v2·… rail, no
    edge); `url` makes the board iframe a
    live dev-server route instead of the file body.
 4. UI feedback appends `request` lines to the task's `requests.jsonl`
    (append-only; `status` lines override, later wins — except `cancelled`,
-   which is terminal). Derive requests carry
+   which is terminal). Iterate requests carry
    `count` (ghost nodes), optionally `images` (reference images pasted
    into the composer, stored under the task's `images/`), and may list
-   several parents in `variants` (multi-select = combine); adjust requests
-   ("one small tweak") are served inline by the fleet as a new `adjust:true`
+   several parents in `variants` (multi-select = combine); tweak requests
+   ("one small change") are served inline by the fleet as a new `tweak:true`
    revision of `variants[0]`, no subagent; pick requests mean "implement this design in the
    real codebase", not a file move.
 5. The resident fleet agent heartbeats
    (`POST /api/sessions/<name>/heartbeat`, 90s window) and serves requests.
-   No heartbeat → board shows "fleet offline" and locks derive/pick
+   No heartbeat → board shows "fleet offline" and locks iterate/pick
    (cancel stays allowed). Server pushes SSE on file changes + liveness
    flips; the board hot-updates.
 
