@@ -1,0 +1,33 @@
+<!--variant-meta {"name":"Paper Cup","model":"opus-4.8","description":"Playful flat illustration style — bouncing beans and a wobbling price card."}-->
+<!doctype html><html><head><style>
+  *{margin:0;box-sizing:border-box}
+  body{height:100vh;background:#f6efe4;color:#33261a;display:flex;align-items:center;
+    justify-content:center;gap:7vmin;font-family:"Comic Sans MS","Marker Felt",cursive;overflow:hidden}
+  .beans{position:absolute;inset:0;pointer-events:none}
+  .bean{position:absolute;width:2.6vmin;height:3.6vmin;background:#7a4a21;border-radius:50%;
+    animation:drop 3.8s ease-in infinite}
+  .bean:before{content:"";position:absolute;inset:20% 45%;background:#f6efe4;border-radius:999px}
+  @keyframes drop{0%{transform:translateY(-12vh) rotate(0)}100%{transform:translateY(112vh) rotate(340deg)}}
+  h1{font-size:clamp(26px,5.4vmin,56px);line-height:1.08;max-width:13ch;transform:rotate(-2deg)}
+  h1 mark{background:#ffd25e;padding:0 .15em;border-radius:.2em}
+  .sub{margin-top:1em;font-family:sans-serif;font-size:clamp(12px,1.9vmin,16px);color:#6b543c;max-width:36ch}
+  .card{background:#fff;border:3px solid #33261a;border-radius:18px;padding:3vmin 3.6vmin;text-align:center;
+    box-shadow:8px 8px 0 #33261a;animation:wob 2.8s ease-in-out infinite;font-family:sans-serif}
+  @keyframes wob{0%,100%{transform:rotate(2deg)}50%{transform:rotate(-2deg) translateY(-6px)}}
+  .price{font-size:clamp(28px,5vmin,52px);font-weight:900}
+  .per{font-size:12px;color:#6b543c}
+  .go{display:inline-block;margin-top:1.4vmin;background:#e2543e;color:#fff;font-weight:800;font-size:13px;
+    padding:.75em 1.5em;border-radius:999px;text-decoration:none;border:3px solid #33261a}
+</style></head><body>
+  <div class="beans">
+    <span class="bean" style="left:8%;animation-delay:0s"></span>
+    <span class="bean" style="left:22%;animation-delay:1.3s"></span>
+    <span class="bean" style="left:55%;animation-delay:.6s"></span>
+    <span class="bean" style="left:72%;animation-delay:2.1s"></span>
+    <span class="bean" style="left:90%;animation-delay:1.7s"></span>
+  </div>
+  <div><h1>Really <mark>good</mark> coffee, zero fuss.</h1>
+  <p class="sub">Pick a vibe, we handle the rest. Pause, skip, or cancel with one tap — beans show up like magic.</p></div>
+  <div class="card"><div class="price">$14</div><div class="per">per bag · shipped weekly</div>
+  <a class="go" href="#">Let's brew →</a></div>
+</body></html>

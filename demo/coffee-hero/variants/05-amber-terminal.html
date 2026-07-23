@@ -1,0 +1,39 @@
+<!--variant-meta {"name":"Amber Terminal","model":"fable-5","description":"Fleet-built merge of #1 and #4 — warm sunrise palette with the typing-terminal gimmick.","parent":"01-sunrise-pour.html"}-->
+<!doctype html><html><head><style>
+  *{margin:0;box-sizing:border-box}
+  body{height:100vh;display:flex;align-items:center;justify-content:center;gap:6vmin;overflow:hidden;
+    color:#fff7ee;font-family:-apple-system,sans-serif;
+    background:linear-gradient(140deg,#2b1608,#7a3d10 55%,#e0862e);
+    background-size:180% 180%;animation:bg 9s ease infinite}
+  @keyframes bg{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  .copy{z-index:1;max-width:32ch}
+  h1{font-size:clamp(24px,4.6vmin,46px);line-height:1.12;font-weight:750;animation:rise .9s ease both}
+  h1 span{color:#ffd25e}
+  p{margin-top:1em;opacity:.85;font-size:clamp(12px,1.9vmin,15px);animation:rise .9s .15s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+  .term{z-index:1;width:min(46vmin,420px);border-radius:14px;overflow:hidden;
+    background:rgba(43,22,8,.6);backdrop-filter:blur(14px);border:1px solid rgba(255,210,94,.3);
+    box-shadow:0 30px 60px -20px rgba(0,0,0,.6);animation:rise .9s .3s ease both}
+  .bar{display:flex;gap:6px;padding:11px 13px;background:rgba(255,247,238,.08)}
+  .bar i{width:10px;height:10px;border-radius:50%;background:#ff5f57}
+  .bar i:nth-child(2){background:#febc2e}.bar i:nth-child(3){background:#28c840}
+  .body{padding:16px;font:clamp(10px,1.7vmin,13px)/1.9 ui-monospace,Menlo,monospace;color:#f3d9b8}
+  .body .ok{color:#ffd25e}.body .cmd{color:#fff7ee}
+  .line{overflow:hidden;white-space:nowrap;width:0;animation:type 1.2s steps(30) forwards}
+  .l2{animation-delay:1.4s}.l3{animation-delay:2.8s}.l4{animation-delay:4.2s}
+  @keyframes type{to{width:100%}}
+  .cursor{display:inline-block;width:.6em;height:1.1em;background:#ffd25e;vertical-align:text-bottom;
+    animation:blink 1s steps(1) infinite 5.4s;opacity:0}
+  @keyframes blink{50%{opacity:1}}
+</style></head><body>
+  <div class="copy"><h1>Sunrise, <span>scheduled.</span></h1>
+  <p>Set your taste once and fresh-roasted beans deploy with the dawn. Warm coffee, cold precision.</p></div>
+  <div class="term"><div class="bar"><i></i><i></i><i></i></div>
+  <div class="body">
+    <div class="line cmd">$ brew subscribe --roast=sunrise</div>
+    <div class="line l2 ok">✓ profile saved: caramel · bright</div>
+    <div class="line l3 cmd">$ brew ship --at=dawn</div>
+    <div class="line l4 ok">✓ next pour: tomorrow 6:45am ☀️</div>
+    <span class="cursor"></span>
+  </div></div>
+</body></html>
