@@ -46,7 +46,9 @@ the Input.
 4. UI feedback appends `request` lines to the task's `requests.jsonl`
    (append-only; `status` lines override, later wins — except `cancelled`,
    which is terminal). Iterate requests carry
-   `count` (ghost nodes), optionally `images` (reference images pasted
+   `count` (ghost nodes), `model` (which model the user picked in the
+   Input — `sonnet`/`opus`/`fable`; tweaks carry it too), optionally
+   `images` (reference images pasted
    into the composer, stored under the task's `images/`), and may list
    several parents in `variants` (multi-select = combine); tweak requests
    ("one small change") are served inline by the fleet as a new `tweak:true`

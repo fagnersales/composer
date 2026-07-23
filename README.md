@@ -99,7 +99,7 @@ POST /api/sessions/<name>/heartbeat         fleet agent liveness (90s window)
 GET  /api/s/<name>/tasks                    {live, tasks:[{slug,title,created,variants}]}
 GET  /api/s/<name>/t/<task>/variants         [{id,name,model,description,parent,parents,tweak,url,ts,html}] — ts = when the file appeared
 GET  /api/s/<name>/t/<task>/requests
-POST /api/s/<name>/t/<task>/requests        {text, variants[], count?, type?: iterate|tweak|pick|feedback, images?: ["images/…"]}
+POST /api/s/<name>/t/<task>/requests        {text, variants[], count?, type?: iterate|tweak|pick|feedback, model?: sonnet|opus|fable, images?: ["images/…"]}
 POST /api/s/<name>/t/<task>/requests/<id>/cancel
 POST /api/s/<name>/t/<task>/images          raw image body (Content-Type: image/png|jpeg|gif|webp, 10MB max) → {file:"images/<hash>.<ext>"}
 GET  /api/s/<name>/t/<task>/images/<file>   serve a stored reference image
@@ -115,7 +115,7 @@ status lines are ignored (a fleet that claimed the request before seeing the
 cancel can't resurrect it). Never rewrite the file, only append.
 
 ```jsonl
-{"kind":"request","id":"a1b2c3d4","ts":"…","text":"Iterate 3 new variants from \"Midnight Brew\" — warmer","variants":["02-midnight-brew.html"],"status":"pending","count":3,"type":"iterate","images":["images/ab12cd34ef56.png"]}
+{"kind":"request","id":"a1b2c3d4","ts":"…","text":"Iterate 3 new variants from \"Midnight Brew\" — warmer","variants":["02-midnight-brew.html"],"status":"pending","count":3,"type":"iterate","model":"opus","images":["images/ab12cd34ef56.png"]}
 {"kind":"status","id":"a1b2c3d4","status":"building"}
 {"kind":"status","id":"a1b2c3d4","status":"done","note":"→ 06-x.html, 07-y.html, 08-z.html"}
 ```
@@ -129,6 +129,11 @@ Request `type`s the board sends:
   `variants[0]` — the primary lineage edge. A ghost stands for a slot no
   child has landed in yet: the board matches children to the request by
   parent + file age, so it counts the same after a reload as before one.
+`iterate` and `tweak` requests also carry `model` — which model the user
+picked in the board's Input (`sonnet` | `opus` | `fable`, default `opus`).
+The fleet agent must build with it: spawn the subagents on that model, and
+write its name into each child's `variant-meta` `model` field.
+
 Requests may carry `images`: reference images the user attached in the
 board's composer, as paths relative to the task folder (they live in its
 `images/` subfolder). The fleet agent should view them — they are visual

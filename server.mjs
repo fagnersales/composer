@@ -331,6 +331,8 @@ const server = http.createServer(async (req, res) => {
         };
         if (images.length) entry.images = images;
         if (["iterate", "tweak", "pick", "feedback"].includes(b.type)) entry.type = b.type;
+        // which model the board asked the fleet to build with
+        if (["sonnet", "opus", "fable"].includes(b.model)) entry.model = b.model;
         // iterate requests carry how many children to build; the board renders
         // that many ghost nodes while the request is open
         if (Number.isInteger(b.count) && b.count > 0) entry.count = Math.min(b.count, 5);
