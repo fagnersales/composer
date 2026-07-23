@@ -4,5 +4,8 @@
   },
   "reviewloop": {
     "dir": "/Users/fagnersales/work/reviewloop/.composer"
+  },
+  "composer": {
+    "dir": "/Users/fagnersales/work/composer/.composer"
   }
 }

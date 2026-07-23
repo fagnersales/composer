@@ -35,7 +35,7 @@
     --shadow-lg:0 12px 32px rgba(10,10,10,.12);
     --shadow-pop:0 24px 48px -12px rgba(10,10,10,.18);
     /* Motion */
-    --ease-out:cubic-bezier(.16,1,.3,1); --dur-fast:120ms; --dur-base:200ms;
+    --ease-out:cubic-bezier(.16,1,.3,1); --dur-fast:120ms; --dur-base:200ms; --dur-snap:290ms;
     /* Type */
     --font-sans:'Geist',ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --font-mono:'Geist Mono','SF Mono','Menlo',monospace;
@@ -163,21 +163,82 @@
   #minimap { position: fixed; right: 16px; bottom: 16px; z-index: 20; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: rgba(10,10,10,.82); display: block; box-shadow: var(--shadow-md); }
 
   /* composer */
+  /* Two states, one motion: a bare 230px chip at rest, a 412px textarea while
+     composing. Everything explanatory (keycap hint, note row) belongs to the
+     composing state or to a confirmation — the resting chip is only what you
+     can operate, so its bottom edge sits right under the buttons. */
   #composer {
     position: fixed; z-index: 25; width: 230px; background: var(--bg-surface); border: 1px solid var(--border-default);
     border-radius: var(--radius-lg); padding: 12px; box-shadow: var(--shadow-pop); font-size: 12px;
+    transition: width var(--dur-snap) var(--ease-out), box-shadow var(--dur-snap) var(--ease-out),
+                border-color var(--dur-snap) var(--ease-out);
   }
+  #composer.composing { width: 412px; border-color: var(--border-strong); }
   #composer .cmp-title { color: var(--text-secondary); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #composer .cmp-title b { color: var(--text-primary); font-weight: var(--weight-semibold); }
-  #cmpInput {
-    width: 100%; box-sizing: border-box; background: var(--bg-page); border: 1px solid var(--border-default);
-    border-radius: var(--radius-md); color: var(--text-primary); padding: 9px 10px; font-size: 12px; font-family: var(--font-sans); outline: none;
-    transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+
+  /* The wrapper owns the height transition and clips; the textarea inside snaps
+     straight to its final box with no transition of its own. Animating the
+     textarea itself makes the browser chase the caret and re-clamp scrollTop on
+     every frame of the ease, which reads as a flicker on each new line. */
+  #cmpField {
+    position: relative; height: 32px; background: var(--bg-page); overflow: hidden;
+    border: 1px solid var(--border-default); border-radius: var(--radius-md);
+    transition: height var(--dur-snap) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out), background var(--dur-base) var(--ease-out);
   }
+  #composer.composing #cmpField { height: var(--cmp-fh, 108px); background: var(--bg-subtle); }
+  /* growth past the snap is deliberately quieter — the snap stays the moment */
+  #composer.composing.settled #cmpField { transition: height 170ms var(--ease-out), border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+  #cmpField:hover { border-color: var(--border-strong); }
+  #cmpField.hot { border-color: var(--gray-400); box-shadow: 0 0 0 3px var(--input-glow); }
+  #cmpInput, #cmpMirror {
+    font-size: 12px; font-family: var(--font-sans); line-height: 17px; padding: 7px 10px;
+    white-space: pre; overflow-wrap: normal; word-break: normal;
+  }
+  #composer.composing #cmpInput, #composer.composing #cmpMirror { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; }
+  #cmpInput {
+    position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+    margin: 0; border: 0; outline: none; background: transparent; resize: none; overflow: hidden;
+    color: var(--text-primary); display: block;
+  }
+  #composer.composing #cmpInput { overflow-y: auto; }
   #cmpInput::placeholder { color: var(--text-tertiary); }
-  #cmpInput:hover { border-color: var(--border-strong); }
-  #cmpInput:focus { border-color: var(--gray-400); box-shadow: 0 0 0 3px var(--input-glow); }
-  .cmp-row { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; }
+  /* measured off-screen so the live field's height is only ever written once */
+  #cmpMirror { position: absolute; left: 0; right: 0; top: 0; height: auto; visibility: hidden; pointer-events: none; }
+
+  /* drawn, never a glyph — ⇧ / ↵ can't be trusted to render without a webfont */
+  kbd.kb {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 15px; min-width: 15px; padding: 0 3px; box-sizing: border-box;
+    background: var(--bg-muted); border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm); color: var(--text-tertiary);
+    vertical-align: middle; line-height: 0; font: inherit;
+  }
+  kbd.kb + kbd.kb { margin-left: 3px; }
+  kbd.kb > svg { display: block; width: 11px; height: 11px; flex: none; }
+  kbd.kb.txt { padding: 0 4px; font-family: var(--font-sans); font-size: 9px; line-height: 1; font-weight: var(--weight-medium); color: var(--text-secondary); }
+  .cmp-hint {
+    position: absolute; right: 9px; bottom: 6px; z-index: 2;
+    display: inline-flex; align-items: center; font-size: 10px; line-height: 15px;
+    color: var(--text-tertiary); pointer-events: none;
+    opacity: 0; transform: translateY(3px);
+    /* leaving is quick and undelayed, so it's gone before the field collapses
+       back onto one line and can't smear over the placeholder */
+    transition: opacity 110ms var(--ease-out), transform 110ms var(--ease-out);
+  }
+  #composer.composing .cmp-hint { opacity: 1; transform: none; transition: opacity 180ms var(--ease-out) 90ms, transform 180ms var(--ease-out) 90ms; }
+  .cmp-hint .lbl { margin-left: 6px; }
+  #cmpInline {
+    flex: 1 1 auto; min-width: 0; color: var(--text-secondary); line-height: 17px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    opacity: 0; transform: translateX(-6px);
+    transition: opacity 180ms var(--ease-out), transform 220ms var(--ease-out);
+  }
+  #composer.composing #cmpInline { opacity: 1; transform: none; transition-delay: 110ms; }
+  .cmp-spacer { flex: 1 1 auto; }
+  #composer.composing .cmp-spacer { display: none; }
+  .cmp-row { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
   #cmpCount { display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--bg-muted); border-radius: var(--radius-full); }
   #cmpCount button { width: 26px; height: 26px; border-radius: var(--radius-full); border: none; background: none; color: var(--text-secondary); cursor: pointer; font-size: 14px; line-height: 1; font-family: var(--font-sans); font-weight: var(--weight-medium); transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
   #cmpCount button:hover:not(:disabled) { background: var(--pill-active); color: var(--text-primary); }
@@ -192,14 +253,29 @@
   #cmpGo { height: 32px; padding: 0 16px; border-radius: var(--radius-full); border: 0; background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-medium); font-family: var(--font-sans); font-size: 12px; cursor: pointer; transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
   #cmpGo:hover { background: var(--accent-hover); }
   #cmpGo:active { transform: scale(.98); }
-  .cmp-note { margin-top: 7px; color: var(--text-secondary); min-height: 14px; }
+  /* Reserves no row at rest — a zero-height sliver that opens only when there
+     is something to say, on the panel's own curve, then collapses back to bare. */
+  .cmp-note {
+    height: 0; margin-top: 0; overflow: hidden; color: var(--text-secondary);
+    line-height: 17px; white-space: nowrap; text-overflow: ellipsis;
+    opacity: 0; transform: translateY(-3px);
+    transition: height var(--dur-snap) var(--ease-out), margin-top var(--dur-snap) var(--ease-out),
+                opacity 170ms var(--ease-out), transform var(--dur-snap) var(--ease-out);
+  }
+  #composer.noted .cmp-note { height: 17px; margin-top: 7px; opacity: 1; transform: none; }
+  .cmp-note .dot { display: inline-block; width: 5px; height: 5px; border-radius: var(--radius-full); background: var(--text-primary); vertical-align: 1px; margin-right: 6px; }
+  #cmpGo { flex: none; }
   #cmpGo:disabled { opacity: .45; cursor: default; }
-  #composer.offline #cmpInput, #composer.offline #cmpCount { opacity: .5; pointer-events: none; }
+  #composer.offline #cmpField, #composer.offline #cmpCount { opacity: .5; pointer-events: none; }
   /* docked inside the inspect overlay: centered just above the control bar */
   #composer.in-inspect {
     z-index: 45; width: 320px; left: 50%; top: auto;
     bottom: calc((100vh - min(88vh, 860px)) / 2 + 64px);
     transform: translateX(-50%); box-shadow: var(--shadow-pop);
+  }
+  #composer.in-inspect.composing { width: 520px; }
+  @media (prefers-reduced-motion: reduce) {
+    #composer, #cmpField, .cmp-note, .cmp-hint, #cmpInline { transition: none !important; }
   }
 
   /* inspect overlay */
@@ -267,13 +343,21 @@
 
   <div id="composer" hidden>
     <div class="cmp-title">Derive from <b id="cmpParent">—</b></div>
-    <input id="cmpInput" type="text" placeholder="Type something..." />
+    <div id="cmpField">
+      <div id="cmpMirror" aria-hidden="true"></div>
+      <textarea id="cmpInput" rows="1" placeholder="Type something..."></textarea>
+      <div class="cmp-hint" aria-hidden="true">
+        <kbd class="kb"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 5.6 6 2.8l2.8 2.8"/><path d="M6 2.9v4.6"/><path d="M3.9 9.5h4.2"/></svg></kbd><kbd class="kb"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.4 3v3.9H3.3"/><path d="M5.3 4.9 3.2 6.9l2.1 2"/></svg></kbd><span class="lbl">newline</span>
+      </div>
+    </div>
     <div class="cmp-row">
       <div id="cmpCount">
         <button id="cmpMinus" type="button" title="Fewer variants">−</button>
         <input id="cmpN" type="number" min="1" max="12" step="1" value="3" title="How many variants to generate (1–12)" />
         <button id="cmpPlus" type="button" title="More variants">+</button>
       </div>
+      <div id="cmpInline"></div>
+      <div class="cmp-spacer"></div>
       <button id="cmpGo">Derive</button>
     </div>
     <div id="cmpNote" class="cmp-note"></div>
@@ -339,6 +423,9 @@ var edgesSvg = document.getElementById('edges');
 var composer = document.getElementById('composer');
 var cmpParent = document.getElementById('cmpParent');
 var cmpInput = document.getElementById('cmpInput');
+var cmpField = document.getElementById('cmpField');
+var cmpMirror = document.getElementById('cmpMirror');
+var cmpInline = document.getElementById('cmpInline');
 var cmpGo = document.getElementById('cmpGo');
 var cmpN = document.getElementById('cmpN');
 var cmpMinus = document.getElementById('cmpMinus');
@@ -557,7 +644,9 @@ function syncComposer() {
   cmpParent.textContent = n.name;
   if (composer.classList.contains('in-inspect')) { composer.style.left = ''; composer.style.top = ''; return; }
   var sx = n.x * cam.scale + cam.x, sy = n.y * cam.scale + cam.y;
-  var w = composer.offsetWidth || 230, h = composer.offsetHeight || 150;
+  // the panel's own width transition is in flight while composing, so place
+  // against the target width rather than whatever this frame happens to measure
+  var w = cmpPanelWidth(cmpMode), h = composer.offsetHeight || 150;
   var left = sx + NODE_W * cam.scale + 14;
   if (left + w > window.innerWidth - 10) left = sx - w - 14;
   if (left < 10) left = 10;
@@ -726,13 +815,13 @@ function sendRequest(text, variantIds, count, type) {
 function doDerive() {
   var p = byId(state.selected);
   if (!p || p.building) return;
-  if (!fleetLive) { cmpNote.textContent = 'Fleet offline — run /composer to reconnect.'; return; }
+  if (!fleetLive) { cmpShowNote('Fleet offline — run /composer to reconnect.'); return; }
   var req = cmpInput.value.trim();
   var text = 'Derive ' + cmpCount + ' new variant' + (cmpCount > 1 ? 's' : '') + ' from "' + p.name + '"' + (req ? ' — ' + req : '');
   sendRequest(text, [p.id], cmpCount, 'derive').then(function () {
     cmpInput.value = '';
-    cmpNote.textContent = 'Sent to the fleet…';
-    setTimeout(function () { cmpNote.textContent = ''; }, 3800);
+    cmpLayout(true);   // collapse straight back to the bare chip
+    cmpShowNote('<i class="dot"></i>Sent · ' + cmpCount + ' variant' + (cmpCount > 1 ? 's' : ''), 3800);
     refreshRequests();
   });
 }
@@ -793,11 +882,13 @@ function openInspectDerive() {
   if (state.inspectId == null) return;
   if (state.selected !== state.inspectId) select(state.inspectId);
   composer.classList.add('in-inspect');
+  cmpLayout(true);   // docked, the resting field is wider — re-decide the state
   syncComposer();
   cmpInput.focus();
 }
 function closeInspectDerive() {
   composer.classList.remove('in-inspect');
+  cmpLayout(true);
   syncComposer();
 }
 /* Esc peels one layer at a time: derive panel, then overlay, then selection */
@@ -909,11 +1000,132 @@ document.getElementById('tbFit').addEventListener('click', fitView);
   });
 })();
 
+/* ---------- the composer's two states ----------
+   Resting is a one-line chip; composing is a textarea. There is no continuum
+   between them: the moment the caret would run out of room the panel and field
+   snap open together in one motion, and the hints arrive with it. Coming back
+   needs both a quiet spell and a margin of slack, so it can't flap. */
+var CMP_REST_H = 32, CMP_COMP_H = 108, CMP_COMP_H_MAX = 150;
+var CMP_RETURN_DELAY = 400;   // ms of no typing before collapsing back
+var CMP_HYSTERESIS = 14;      // px of slack required before returning
+var CMP_CARET_SLACK = 8;      // the caret needs room too — snap just before it clips
+var cmpMode = 'resting';
+var cmpReturnTimer = null, cmpRemeasure = null, cmpSettle = null;
+
+function cmpDocked() { return composer.classList.contains('in-inspect'); }
+function cmpPanelWidth(mode) {
+  if (cmpDocked()) return mode === 'composing' ? 520 : 320;
+  return mode === 'composing' ? 412 : 230;
+}
+/* Usable text width of the RESTING field, derived rather than measured: while
+   composing, the live panel is already wide, so there is nothing to measure.
+   panel borders 2 + panel padding 24 + field borders 2 + field padding 20 */
+function cmpRestingTextWidth() { return cmpPanelWidth('resting') - 48; }
+
+var cmpMeas = document.createElement('span');
+cmpMeas.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:0;';
+document.body.appendChild(cmpMeas);
+function cmpTextWidth(s) {
+  var cs = getComputedStyle(cmpInput);
+  cmpMeas.style.font = cs.font;
+  cmpMeas.style.letterSpacing = cs.letterSpacing;
+  cmpMeas.textContent = s;
+  return cmpMeas.getBoundingClientRect().width;
+}
+
+function cmpWantsComposing(v) {
+  if (v.indexOf('\n') >= 0) return true;                 // an explicit newline needs the box
+  return cmpTextWidth(v) + CMP_CARET_SLACK > cmpRestingTextWidth();
+}
+function cmpFitsResting(v) {
+  if (v.indexOf('\n') >= 0) return false;
+  return cmpTextWidth(v) + CMP_CARET_SLACK + CMP_HYSTERESIS <= cmpRestingTextWidth();
+}
+
+function cmpSetMode(next, immediate) {
+  if (cmpMode === next) return;
+  cmpMode = next;
+  composer.classList.toggle('composing', next === 'composing');
+  composer.classList.remove('settled');
+  clearTimeout(cmpSettle);
+  if (next === 'composing' && !immediate) {
+    // once the snap has landed, later height changes get the quieter transition
+    cmpSettle = setTimeout(function () { if (cmpMode === 'composing') composer.classList.add('settled'); }, 330);
+  }
+  cmpInput.placeholder = next === 'composing' ? 'Describe the change…' : 'Type something...';
+  cmpSyncInline();
+  syncComposer();
+  // the panel's box is still animating; re-place once it has settled
+  setTimeout(syncComposer, 330);
+}
+
+function cmpDecideMode(v, immediate) {
+  if (cmpMode === 'resting') {
+    clearTimeout(cmpReturnTimer);
+    if (cmpWantsComposing(v)) cmpSetMode('composing', immediate);   // the snap: no debounce
+  } else {
+    if (!cmpFitsResting(v)) { clearTimeout(cmpReturnTimer); return; }
+    clearTimeout(cmpReturnTimer);
+    if (immediate) { cmpSetMode('resting', true); return; }
+    cmpReturnTimer = setTimeout(function () {
+      if (cmpFitsResting(cmpInput.value)) cmpSetMode('resting');
+    }, CMP_RETURN_DELAY);
+  }
+}
+
+function cmpMeasureHeight() {
+  cmpMirror.textContent = cmpInput.value + '​';
+  var h = Math.ceil(cmpMirror.getBoundingClientRect().height) + 2;
+  cmpField.style.setProperty('--cmp-fh', clamp(h, CMP_COMP_H, CMP_COMP_H_MAX) + 'px');
+}
+
+function cmpLayout(immediate) {
+  cmpDecideMode(cmpInput.value, immediate);
+  if (cmpMode === 'composing') {
+    cmpMeasureHeight();
+    // the panel width is still in flight for one snap-length; re-measure after
+    clearTimeout(cmpRemeasure);
+    cmpRemeasure = setTimeout(function () { if (cmpMode === 'composing') cmpMeasureHeight(); }, 340);
+  } else {
+    cmpField.style.removeProperty('--cmp-fh');
+  }
+  cmpSyncInline();
+}
+
+/* the only written hint lives in the composing row, so it arrives with the snap */
+function cmpSyncInline() {
+  cmpInline.innerHTML = (cmpMode === 'composing' && cmpInput.value.trim())
+    ? '<kbd class="kb txt">Enter</kbd>&nbsp; to derive' : '';
+}
+
+/* The note reserves no row at rest. Transient messages open it for a beat and
+   collapse away; sticky ones (fleet offline) stay until they're cleared. */
+var cmpNoteTimer = null, cmpNoteClear = null;
+function cmpShowNote(html, ttl) {
+  clearTimeout(cmpNoteClear); clearTimeout(cmpNoteTimer);
+  cmpNote.innerHTML = html;
+  composer.classList.add('noted');
+  if (ttl) cmpNoteTimer = setTimeout(cmpHideNote, ttl);
+}
+function cmpHideNote() {
+  clearTimeout(cmpNoteTimer);
+  if (!composer.classList.contains('noted')) return;
+  composer.classList.remove('noted');
+  // hold the text until the row has finished collapsing, so it fades rather than blanking
+  clearTimeout(cmpNoteClear);
+  cmpNoteClear = setTimeout(function () { cmpNote.innerHTML = ''; }, 340);
+}
+
+cmpInput.addEventListener('input', function () { cmpHideNote(); cmpLayout(); });
+cmpInput.addEventListener('focus', function () { cmpField.classList.add('hot'); });
+cmpInput.addEventListener('blur', function () { cmpField.classList.remove('hot'); });
+
 cmpGo.addEventListener('click', doDerive);
 cmpInput.addEventListener('keydown', function (e) {
-  if (e.key === 'Enter') { e.preventDefault(); doDerive(); }
-  else if (e.key === '+' || e.key === '=') { e.preventDefault(); setCmpCount(cmpCount + 1); }
-  else if (e.key === '-' || e.key === '_') { e.preventDefault(); setCmpCount(cmpCount - 1); }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doDerive(); }
+  // the count shortcuts only apply to an empty field — mid-sentence they'd eat the character
+  else if ((e.key === '+' || e.key === '=') && !cmpInput.value) { e.preventDefault(); setCmpCount(cmpCount + 1); }
+  else if ((e.key === '-' || e.key === '_') && !cmpInput.value) { e.preventDefault(); setCmpCount(cmpCount - 1); }
 });
 function setCmpCount(n, echo) {
   cmpCount = clamp(Math.round(n) || CMP_MIN, CMP_MIN, CMP_MAX);
@@ -991,8 +1203,8 @@ function setLive(v) {
   liveEl.title = v ? 'A fleet agent is listening' : 'No fleet agent — run /composer in the project to reconnect';
   cmpGo.disabled = !v;
   composer.classList.toggle('offline', !v);
-  if (!v) cmpNote.textContent = 'Fleet offline — run /composer to reconnect.';
-  else if (cmpNote.textContent.indexOf('offline') !== -1) cmpNote.textContent = '';
+  if (!v) cmpShowNote('Fleet offline — run /composer to reconnect.');
+  else if (cmpNote.textContent.indexOf('offline') !== -1) cmpHideNote();
 }
 
 /* ---------- boot + live sync ---------- */
