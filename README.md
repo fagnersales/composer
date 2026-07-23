@@ -15,7 +15,11 @@ files in — no chat round-trip. Ghost "building…" nodes appear while an itera
 request is open and resolve into real nodes when files land (SSE).
 
 Board UI: drag nodes to arrange (positions persist per task in
-localStorage), double-click to inspect (aspect switcher + pause/restart for
+localStorage) or hit **Organize** to tidy the whole board into one
+generation-per-row tree — every subtree gets exactly the width it needs, so
+branches can't overlap and each parent rides centred above its children;
+the cards and the camera ease into place together, and grabbing the board
+mid-flight lands them at once. Double-click to inspect (aspect switcher + pause/restart for
 HTML variants), select + composer to iterate children (paste or drop
 reference images into the composer to send them along; shift+click
 selects multiple variants and iterates children combining all of them).
@@ -26,7 +30,7 @@ node cancels its iterate request, "Pick this one" asks the fleet to implement
 that design. Task switcher in the HUD flips between the project's past and
 current tasks. Iterate/pick are **locked while no fleet agent is
 heartbeating** ("fleet offline") so requests can't pile up unheard;
-cancel always works. Keyboard: +/- zoom, 0 fit, Esc close/deselect.
+cancel always works. Keyboard: +/- zoom, 0 fit, o organize, Esc close/deselect.
 
 ## Run
 

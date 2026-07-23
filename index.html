@@ -512,6 +512,7 @@
     <button id="tbZoomOut" title="Zoom out ( - )">−</button>
     <button id="tbZoomIn" title="Zoom in ( + )">+</button>
     <button id="tbFit" title="Fit view ( 0 )">Fit</button>
+    <button id="tbOrg" title="Tidy the whole board into a tree ( o )">Organize</button>
   </div>
 
   <button id="themeToggle" title="Toggle light / dark" aria-label="Toggle light / dark">☾</button>
@@ -691,6 +692,7 @@ function applyCamera() {
   renderMinimap();
 }
 function zoomBy(f) {
+  organizeSettle();
   var mx = window.innerWidth / 2, my = window.innerHeight / 2;
   var wx = (mx - cam.x) / cam.scale, wy = (my - cam.y) / cam.scale;
   cam.scale = clamp(cam.scale * f, 0.15, 2.5);
@@ -698,19 +700,28 @@ function zoomBy(f) {
   cam.y = my - wy * cam.scale;
   applyCamera();
 }
-function fitView() {
-  var a = allNodes();
-  if (!a.length) return;
+/* the camera that frames a set of card boxes — Fit uses it on where the cards
+   are, Organize on where they are about to be */
+function fitCam(boxes) {
+  if (!boxes.length) return null;
   var minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
-  a.forEach(function (n) {
-    minx = Math.min(minx, n.x); miny = Math.min(miny, n.y);
-    maxx = Math.max(maxx, n.x + NODE_W); maxy = Math.max(maxy, n.y + NODE_H);
+  boxes.forEach(function (b) {
+    minx = Math.min(minx, b.x); miny = Math.min(miny, b.y);
+    maxx = Math.max(maxx, b.x + NODE_W); maxy = Math.max(maxy, b.y + NODE_H);
   });
   var bw = maxx - minx, bh = maxy - miny, pad = 90;
   var s = clamp(Math.min((window.innerWidth - pad * 2) / bw, (window.innerHeight - pad * 2 - 40) / bh), 0.15, 1.4);
-  cam.scale = s;
-  cam.x = window.innerWidth / 2 - (minx + bw / 2) * s;
-  cam.y = (window.innerHeight / 2 + 20) - (miny + bh / 2) * s;
+  return {
+    scale: s,
+    x: window.innerWidth / 2 - (minx + bw / 2) * s,
+    y: (window.innerHeight / 2 + 20) - (miny + bh / 2) * s
+  };
+}
+function fitView() {
+  organizeSettle();
+  var c = fitCam(allNodes());
+  if (!c) return;
+  cam.scale = c.scale; cam.x = c.x; cam.y = c.y;
   applyCamera();
 }
 
@@ -787,6 +798,112 @@ function placeNewChild(parent) {
   var x = right.x + NODE_W + 60, y = right.y;
   while (collides(x, y, null)) x += NODE_W + 60;
   return { x: x, y: y };
+}
+
+/* ---------- organize ---------- */
+/* One tidy tree over the whole board: every subtree is given exactly the width
+   it needs, so no two branches can ever overlap, and each parent rides centred
+   above its own children. Depth is the generation — a variant always sits one
+   row under the variant it came from. Ghost slots lay out with the rest, so a
+   row still building keeps the shape it will have once it lands.
+   The order the user already sees (left to right) is the order kept. */
+var ORG_HGAP = 60, ORG_VGAP = 140, ORG_ROOT_GAP = 120, ORG_X0 = 60, ORG_Y0 = 90;
+function organizeLayout() {
+  var all = allNodes();
+  if (!all.length) return null;
+  var byid = {}, kids = {};
+  all.forEach(function (n) { byid[n.id] = n; kids[n.id] = []; });
+  var roots = [];
+  all.forEach(function (n) {
+    var p = n.parentId != null && n.parentId !== n.id ? byid[n.parentId] : null;
+    if (p) kids[p.id].push(n); else roots.push(n);
+  });
+  function leftToRight(a, b) { return a.x - b.x || a.y - b.y; }
+  roots.sort(leftToRight);
+  Object.keys(kids).forEach(function (k) { kids[k].sort(leftToRight); });
+
+  // walk into a strictly acyclic tree first: a bad parent chain must not be
+  // able to spin the width pass forever
+  var visited = {}, tree = {};
+  function build(n) {
+    visited[n.id] = 1;
+    var own = [];
+    kids[n.id].forEach(function (c) { if (!visited[c.id]) { visited[c.id] = 1; own.push(c); } });
+    tree[n.id] = own;
+    own.forEach(build);
+  }
+  roots.forEach(function (r) { if (!visited[r.id]) build(r); });
+  all.forEach(function (n) { if (!visited[n.id]) { roots.push(n); build(n); } });
+
+  var w = {};
+  function measure(n) {
+    var ch = tree[n.id], span = 0;
+    ch.forEach(function (c) { span += measure(c) + ORG_HGAP; });
+    return (w[n.id] = Math.max(NODE_W, span - (ch.length ? ORG_HGAP : 0)));
+  }
+  var pos = {};
+  function place(n, left, depth) {
+    var ch = tree[n.id], span = w[n.id], inner = 0;
+    pos[n.id] = { x: ORG_X0 + left + (span - NODE_W) / 2, y: ORG_Y0 + depth * (NODE_H + ORG_VGAP) };
+    ch.forEach(function (c) { inner += w[c.id] + ORG_HGAP; });
+    var cx = left + (span - (inner - ORG_HGAP)) / 2;
+    ch.forEach(function (c) { place(c, cx, depth + 1); cx += w[c.id] + ORG_HGAP; });
+  }
+  var x = 0;
+  roots.forEach(function (r) { measure(r); place(r, x, 0); x += w[r.id] + ORG_ROOT_GAP; });
+  return pos;
+}
+
+/* the board settles into the new shape instead of teleporting into it — the
+   cards and the camera ride the same eased clock, so the layout stays readable
+   the whole way across. Any grab or zoom mid-flight lands it immediately. */
+var orgTween = null;
+function organizeSettle() {
+  if (!orgTween) return;
+  cancelAnimationFrame(orgTween.raf);
+  orgTween.moves.forEach(function (m) {
+    m.n.x = m.x1; m.n.y = m.y1;
+    if (nodeEls[m.n.id]) updateNodePos(m.n);
+  });
+  cam.x = orgTween.c1.x; cam.y = orgTween.c1.y; cam.scale = orgTween.c1.scale;
+  orgTween = null;
+  renderEdges();
+  applyCamera();
+  savePositions();
+}
+function organizeView() {
+  organizeSettle();   // read the board from where a previous organize left it
+  var target = organizeLayout();
+  if (!target) return;
+  var moves = [];
+  allNodes().forEach(function (n) {
+    var t = target[n.id];
+    if (t) moves.push({ n: n, x0: n.x, y0: n.y, x1: t.x, y1: t.y });
+  });
+  if (!moves.length) return;
+  var c0 = { x: cam.x, y: cam.y, scale: cam.scale };
+  var c1 = fitCam(moves.map(function (m) { return { x: m.x1, y: m.y1 }; })) || c0;
+  orgTween = { moves: moves, c1: c1, raf: 0 };
+  if (cmpReduce()) { organizeSettle(); return; }
+  drag = null;   // organizing takes the board over from any drag in flight
+  var t0 = performance.now(), DUR = 520;
+  function step(now) {
+    var k = clamp((now - t0) / DUR, 0, 1);
+    if (k >= 1) { organizeSettle(); return; }
+    var e = 1 - Math.pow(1 - k, 3);
+    moves.forEach(function (m) {
+      m.n.x = m.x0 + (m.x1 - m.x0) * e;
+      m.n.y = m.y0 + (m.y1 - m.y0) * e;
+      if (nodeEls[m.n.id]) updateNodePos(m.n);
+    });
+    cam.x = c0.x + (c1.x - c0.x) * e;
+    cam.y = c0.y + (c1.y - c0.y) * e;
+    cam.scale = c0.scale + (c1.scale - c0.scale) * e;
+    renderEdges();
+    applyCamera();
+    orgTween.raf = requestAnimationFrame(step);
+  }
+  orgTween.raf = requestAnimationFrame(step);
 }
 
 /* ---------- nodes ---------- */
@@ -993,6 +1110,7 @@ function navSiblingsOf(n) {
 }
 function navTo(n) {
   if (!n) return;
+  organizeSettle();   // navigate against the final layout, not a moving one
   select(n.id);
   /* pan just enough to keep the node in view (36px margin, topbar excluded) */
   var m = 36;
@@ -1367,6 +1485,9 @@ canvas.addEventListener('mousedown', function (e) {
   if (e.button !== 0) return;
   drag = { mode: 'pan', lastX: e.clientX, lastY: e.clientY, moved: 0 };
 });
+/* a hand on the board wins: the organize tween lands where it was headed
+   rather than fighting the pan, the drag or the zoom */
+window.addEventListener('mousedown', organizeSettle, true);
 window.addEventListener('mousemove', function (e) {
   if (!drag) return;
   var dx = e.clientX - drag.lastX, dy = e.clientY - drag.lastY;
@@ -1391,6 +1512,7 @@ window.addEventListener('mouseup', function (e) {
 });
 canvas.addEventListener('wheel', function (e) {
   e.preventDefault();
+  organizeSettle();
   var rect = canvas.getBoundingClientRect();
   var mx = e.clientX - rect.left, my = e.clientY - rect.top;
   var wx = (mx - cam.x) / cam.scale, wy = (my - cam.y) / cam.scale;
@@ -1405,6 +1527,7 @@ canvas.addEventListener('wheel', function (e) {
 document.getElementById('tbZoomOut').addEventListener('click', function () { zoomBy(1 / 1.2); });
 document.getElementById('tbZoomIn').addEventListener('click', function () { zoomBy(1.2); });
 document.getElementById('tbFit').addEventListener('click', fitView);
+document.getElementById('tbOrg').addEventListener('click', organizeView);
 
 /* subtle light/dark toggle — canvas defaults to dark; only flips CSS tokens */
 (function () {
@@ -1950,8 +2073,10 @@ window.addEventListener('keydown', function (e) {
   else if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomBy(1.2); }
   else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(1 / 1.2); }
   else if (e.key === '0') { e.preventDefault(); fitView(); }
+  else if (e.key === 'o' || e.key === 'O') { e.preventDefault(); organizeView(); }
 });
 window.addEventListener('resize', function () {
+  organizeSettle();
   applyCamera();
   if (state.inspectId != null) setAspect(currentAspect);
 });

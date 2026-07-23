@@ -10,6 +10,22 @@ This repo is the **tool only** (`server.mjs` + `index.html`, zero deps,
 except `demo/`, a sample session, and `sessions.json`, the persisted
 session→dir registry.
 
+## Words the user uses
+
+When the user says one of these, this is what they mean — answer and edit in
+their vocabulary, not the code's.
+
+| The user says | It means | In the code |
+| --- | --- | --- |
+| **Card**, **Variant** | one generated variant on the board | `state.nodes[i]` / a `.node` element / a `NN-slug.html` file |
+| **Line** | the connector drawn from a parent variant to its child | `renderEdges` / `edgePath` / `#edges path.edge` |
+| **App** | this page — the board itself, the thing being worked on | `index.html` |
+| **Input** | the panel where the count is set and a variant is created, iterated or tweaked | `#composer` and every `cmp*` symbol |
+
+Beware the two "composer"s: the **Input** is `#composer` in the code, while
+the *product* is also called Composer. If it's the box you type into, it's
+the Input.
+
 ## How it flows
 
 1. One hub on :4600 serves many projects. The skill registers a session
