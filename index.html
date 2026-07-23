@@ -43,7 +43,17 @@
     --tracking-normal:-.01em; --tracking-heading:-.02em;
     --text-xs:12px; --text-sm:13px; --text-md:14px; --text-lg:16px;
     color-scheme:light;
+    /* Counter ladder — 12 perceptually even achromatic stops. The brand colour
+       is the absence of colour, so magnitude grades along luminance alone: on
+       white the ramp runs pale → ink. */
+    --lum-1:oklch(.680 0 0);  --lum-2:oklch(.631 0 0);  --lum-3:oklch(.582 0 0);
+    --lum-4:oklch(.533 0 0);  --lum-5:oklch(.484 0 0);  --lum-6:oklch(.435 0 0);
+    --lum-7:oklch(.385 0 0);  --lum-8:oklch(.336 0 0);  --lum-9:oklch(.287 0 0);
+    --lum-10:oklch(.238 0 0); --lum-11:oklch(.189 0 0); --lum-12:oklch(.140 0 0);
+    --rung-off:oklch(.885 0 0);
+    --rung-glow:rgba(10,10,10,.30);
   }
+  @property --k { syntax: '<number>'; inherits: false; initial-value: 0; }
   [data-theme="dark"] {
     --bg-page:#0a0a0a; --bg-subtle:#141414; --bg-muted:#1f1f1f; --bg-surface:#141414;
     --bg-inverse:#fafafa; --bg-overlay:rgba(0,0,0,.6);
@@ -54,6 +64,12 @@
     --edge:rgba(163,163,163,.45); --edge-ghost:rgba(163,163,163,.26);
     --input-glow:var(--gray-800); --pill-active:var(--gray-700);
     color-scheme:dark;
+    --lum-1:oklch(.580 0 0);  --lum-2:oklch(.617 0 0);  --lum-3:oklch(.655 0 0);
+    --lum-4:oklch(.692 0 0);  --lum-5:oklch(.729 0 0);  --lum-6:oklch(.766 0 0);
+    --lum-7:oklch(.804 0 0);  --lum-8:oklch(.841 0 0);  --lum-9:oklch(.878 0 0);
+    --lum-10:oklch(.915 0 0); --lum-11:oklch(.953 0 0); --lum-12:oklch(.990 0 0);
+    --rung-off:oklch(.300 0 0);
+    --rung-glow:rgba(255,255,255,.34);
   }
   * { margin: 0; box-sizing: border-box; }
   html, body { height: 100%; }
@@ -334,17 +350,68 @@
   .cmp-spacer { flex: 1 1 auto; }
   #composer.composing .cmp-spacer { display: none; }
   .cmp-row { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
-  #cmpCount { display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--bg-muted); border-radius: var(--radius-full); }
-  #cmpCount button { width: 26px; height: 26px; border-radius: var(--radius-full); border: none; background: none; color: var(--text-secondary); cursor: pointer; font-size: 14px; line-height: 1; font-family: var(--font-sans); font-weight: var(--weight-medium); transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
-  #cmpCount button:hover:not(:disabled) { background: var(--pill-active); color: var(--text-primary); }
-  #cmpCount button:disabled { opacity: .35; cursor: default; }
+  #cmpCount { position: relative; display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--bg-muted); border-radius: var(--radius-full); }
+  #cmpCount button { position: relative; width: 26px; height: 26px; border-radius: var(--radius-full); border: none; background: none; color: var(--text-secondary); cursor: pointer; font-size: 14px; line-height: 1; font-family: var(--font-sans); font-weight: var(--weight-medium); transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform 90ms var(--ease-out); -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+  #cmpCount button:hover:not(.off) { background: var(--pill-active); color: var(--text-primary); }
+  #cmpCount button:active:not(.off) { transform: scale(.9); }
+  /* `.off`, not [disabled]: at the wall the button still says something (that it
+     IS the wall), so it stays a real control and only *looks* spent. */
+  #cmpCount button.off { opacity: .35; cursor: default; }
+  /* the numeral: a real number input kept for typing/focus/a11y, with the
+     odometer drum painted over it */
+  #cmpNWrap { position: relative; width: 34px; height: 26px; flex: none; }
   #cmpN {
+    position: absolute; inset: 0; z-index: 2;
     width: 34px; height: 26px; padding: 0; border: none; background: none; text-align: center; outline: none;
-    color: var(--text-primary); font-size: 12px; font-family: var(--font-sans); font-weight: var(--weight-semibold);
-    -moz-appearance: textfield;
+    color: transparent; caret-color: transparent; font-size: 12px; font-family: var(--font-sans); font-weight: var(--weight-semibold);
+    -moz-appearance: textfield; border-radius: var(--radius-full);
   }
   #cmpN::-webkit-outer-spin-button, #cmpN::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  #cmpN::selection { background: transparent; }
   #cmpN:focus { background: var(--pill-active); border-radius: var(--radius-full); box-shadow: var(--shadow-sm); }
+  #odo {
+    position: absolute; inset: 0; z-index: 3; pointer-events: none; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-family: var(--font-sans); font-weight: var(--weight-semibold);
+    font-variant-numeric: tabular-nums; color: var(--text-primary);
+  }
+  .slot { position: relative; width: 8px; height: 16px; overflow: hidden; transition: width 240ms var(--ease-out); }
+  .slot.empty { width: 0; }
+  .slot .d { position: absolute; left: 0; top: 0; width: 8px; height: 16px; display: flex; align-items: center; justify-content: center; line-height: 16px; will-change: transform, opacity; }
+  /* wheel shading — the top and bottom of the drum fall away while it rolls */
+  #odo::before, #odo::after { content: ''; position: absolute; left: 0; right: 0; height: 5px; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 200ms var(--ease-out); }
+  #odo::before { top: 5px; background: linear-gradient(var(--bg-muted), transparent); }
+  #odo::after { bottom: 5px; background: linear-gradient(transparent, var(--bg-muted)); }
+  #cmpCount.rolling #odo::before, #cmpCount.rolling #odo::after { opacity: 1; }
+  #cmpCount.rolling #cmpN:focus + #odo::before { background: linear-gradient(var(--pill-active), transparent); }
+  /* rubber band at the wall */
+  @keyframes wallR { 0%{transform:translateX(0)} 22%{transform:translateX(4px)} 48%{transform:translateX(-2px)} 72%{transform:translateX(1px)} 100%{transform:translateX(0)} }
+  @keyframes wallL { 0%{transform:translateX(0)} 22%{transform:translateX(-4px)} 48%{transform:translateX(2px)} 72%{transform:translateX(-1px)} 100%{transform:translateX(0)} }
+  #cmpCount.wall-hi { animation: wallR 300ms cubic-bezier(.3,.9,.3,1); }
+  #cmpCount.wall-lo { animation: wallL 300ms cubic-bezier(.3,.9,.3,1); }
+  /* the ladder — 12 rungs beside the pill, rung N owning luminance stop N, so
+     the count is a standing read-out and not just a digit. `--k` is how far each
+     *filled* rung is pushed from the unfilled grey toward its own stop, so
+     raising the count re-grades the whole stack at once. With no hue to lean on,
+     every achromatic cue is load-bearing: a steeper height ramp, a bar that
+     thickens as it climbs, a hard fill/empty opacity cliff, and a bloom only the
+     top third of the ladder can earn. */
+  #ladder { display: flex; align-items: flex-end; gap: 3px; height: 16px; flex: none; margin: 0 5px 0 4px; opacity: .7; pointer-events: none; transition: opacity 220ms var(--ease-out); }
+  #ladder.lit { opacity: 1; }
+  #ladder i {
+    display: block; border-radius: 1px;
+    --k: 0; --g: 0; --c: var(--rung-off);
+    background: color-mix(in oklab, var(--c) calc(var(--k) * 100%), var(--rung-off));
+    box-shadow: 0 0 calc(2px + 5px * var(--g)) color-mix(in oklab, var(--rung-glow) calc(var(--k) * var(--g) * 90%), transparent);
+    transition: --k 260ms var(--ease-out), transform 200ms var(--ease-out), box-shadow 240ms var(--ease-out), opacity 200ms var(--ease-out);
+    transform-origin: bottom center;
+  }
+  #ladder i.past { opacity: .92; }
+  #ladder i.on { transform: scaleY(1.32) scaleX(1.45); box-shadow: 0 0 calc(3px + 6px * var(--g)) color-mix(in oklab, var(--rung-glow) calc(var(--k) * (var(--g) * 0.7 + 0.3) * 100%), transparent); }
+  #ladder i.off { opacity: .38; box-shadow: none; }
+  /* at the wall only the struck rung goes slack — the stack keeps its grade, so
+     hitting the ceiling at 12 doesn't momentarily flatten the whole read-out */
+  #ladder.wall i.on { box-shadow: none; transform: scaleY(1) scaleX(1); opacity: .45; }
   #cmpGo { height: 32px; padding: 0 16px; border-radius: var(--radius-full); border: 0; background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-medium); font-family: var(--font-sans); font-size: 12px; cursor: pointer; transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
   #cmpGo:hover { background: var(--accent-hover); }
   #cmpGo:active { transform: scale(.98); }
@@ -376,6 +443,10 @@
   #composer.in-inspect.composing { width: 520px; }
   @media (prefers-reduced-motion: reduce) {
     #composer, #cmpField, .cmp-note, .cmp-hint, #cmpInline { transition: none !important; }
+    #cmpCount.wall-hi, #cmpCount.wall-lo { animation: none; }
+    .slot, #ladder, #ladder i { transition-duration: 1ms; }
+    /* no travelling wave: the whole stack re-grades in one snap */
+    #ladder i { transition-delay: 0ms !important; }
   }
 
   /* inspect overlay */
@@ -456,8 +527,12 @@
     <div class="cmp-row">
       <div id="cmpCount">
         <button id="cmpMinus" type="button" title="Fewer variants">−</button>
-        <input id="cmpN" type="number" min="1" max="12" step="1" value="3" title="How many variants to generate (1–12)" />
+        <div id="cmpNWrap">
+          <input id="cmpN" type="number" min="1" max="12" step="1" value="3" title="How many variants to generate (1–12)" />
+          <div id="odo" aria-hidden="true"><span class="slot empty"></span><span class="slot"></span></div>
+        </div>
         <button id="cmpPlus" type="button" title="More variants">+</button>
+        <div id="ladder" aria-hidden="true"></div>
       </div>
       <div id="cmpInline"></div>
       <div class="cmp-spacer"></div>
@@ -535,6 +610,9 @@ var cmpGo = document.getElementById('cmpGo');
 var cmpN = document.getElementById('cmpN');
 var cmpMinus = document.getElementById('cmpMinus');
 var cmpPlus = document.getElementById('cmpPlus');
+var cmpCountEl = document.getElementById('cmpCount');
+var cmpOdo = document.getElementById('odo');
+var cmpLadder = document.getElementById('ladder');
 var cmpNote = document.getElementById('cmpNote');
 var cmpImgs = document.getElementById('cmpImgs');
 var mini = document.getElementById('minimap');
@@ -1503,29 +1581,289 @@ cmpInput.addEventListener('keydown', function (e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
   // shift is the deliberate form — it works mid-sentence, since "_" and "+" are
   // rare enough in a prompt that holding shift can only have meant the counter
-  else if (e.shiftKey && (e.key === '+' || e.key === '=')) { e.preventDefault(); setCmpCount(cmpCount + 1); }
-  else if (e.shiftKey && (e.key === '_' || e.key === '-')) { e.preventDefault(); setCmpCount(cmpCount - 1); }
+  else if (e.shiftKey && (e.key === '+' || e.key === '=')) { e.preventDefault(); cmpBump(1); }
+  else if (e.shiftKey && (e.key === '_' || e.key === '-')) { e.preventDefault(); cmpBump(-1); }
   // bare -/+ only apply to an empty field — mid-sentence they'd eat the character
-  else if ((e.key === '+' || e.key === '=') && !cmpInput.value) { e.preventDefault(); setCmpCount(cmpCount + 1); }
-  else if ((e.key === '-' || e.key === '_') && !cmpInput.value) { e.preventDefault(); setCmpCount(cmpCount - 1); }
+  else if ((e.key === '+' || e.key === '=') && !cmpInput.value) { e.preventDefault(); cmpBump(1); }
+  else if ((e.key === '-' || e.key === '_') && !cmpInput.value) { e.preventDefault(); cmpBump(-1); }
 });
-function setCmpCount(n, echo) {
-  cmpCount = clamp(Math.round(n) || CMP_MIN, CMP_MIN, CMP_MAX);
-  if (echo !== false) cmpN.value = String(cmpCount);
-  cmpMinus.disabled = cmpCount <= CMP_MIN;
-  cmpPlus.disabled = cmpCount >= CMP_MAX;
+/* ===== counter feedback: odometer drum, luminance ladder, synthesized sound =====
+   Changing the count is the one control that spends real agents, so it answers
+   in three channels at once — the digit rolls, the ladder re-grades, and a note
+   sounds. Every sound is synthesized; nothing is fetched. */
+var cmpNoMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+function cmpReduce() { return cmpNoMotion.matches; }
+
+var AC = null, cmpMaster = null, cmpNoiseBuf = null;
+function cmpAudio() {
+  if (!AC) {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    AC = new Ctx();
+    cmpMaster = AC.createGain();
+    // fires on every keystroke of a held run, so it sits under the room
+    cmpMaster.gain.value = 0.2;
+    var comp = AC.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.ratio.value = 6; comp.release.value = 0.15;
+    cmpMaster.connect(comp); comp.connect(AC.destination);
+  }
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
 }
-cmpMinus.addEventListener('click', function () { setCmpCount(cmpCount - 1); });
-cmpPlus.addEventListener('click', function () { setCmpCount(cmpCount + 1); });
+function cmpNoise() {
+  var c = cmpAudio(); if (!c) return null;
+  if (!cmpNoiseBuf) {
+    var n = Math.floor(c.sampleRate * 0.2);
+    cmpNoiseBuf = c.createBuffer(1, n, c.sampleRate);
+    var d = cmpNoiseBuf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  }
+  var s = c.createBufferSource(); s.buffer = cmpNoiseBuf; s.loop = true;
+  s.playbackRate.value = 0.7 + Math.random() * 0.6;
+  return s;
+}
+/* major pentatonic over 1..12 → G3 up to A5: every step is consonant with every
+   other, so a fast hold reads as a run rather than a siren */
+var CMP_PENT = [0, 2, 4, 7, 9], CMP_BASE = 196;
+function cmpFreq(n) {
+  var i = clamp(n, CMP_MIN, CMP_MAX) - 1;
+  return CMP_BASE * Math.pow(2, (Math.floor(i / 5) * 12 + CMP_PENT[i % 5]) / 12);
+}
+function cmpTick(amp) {
+  var c = cmpAudio(); if (!c) return;
+  var s = cmpNoise(); if (!s) return;
+  var t = c.currentTime + 0.001;
+  var bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 1.4;
+  var g = c.createGain();
+  g.gain.setValueAtTime(amp, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+  s.connect(bp); bp.connect(g); g.connect(cmpMaster);
+  s.start(t); s.stop(t + 0.05);
+}
+/* one voice = triangle + octave sine, a quick pitch settle for the detent, and a
+   filtered noise tick for the mechanism */
+function cmpPlayNote(n, vel) {
+  var c = cmpAudio(); if (!c) return;
+  var t = c.currentTime + 0.001, f = cmpFreq(n);
+  vel = vel == null ? 1 : vel;
+  var g = c.createGain();
+  var lp = c.createBiquadFilter();
+  lp.type = 'lowpass'; lp.Q.value = 0.8;
+  lp.frequency.setValueAtTime(f * 7, t);
+  lp.frequency.exponentialRampToValueAtTime(Math.max(f * 1.7, 420), t + 0.13);
+  var o1 = c.createOscillator(); o1.type = 'triangle';
+  o1.frequency.setValueAtTime(f * 1.018, t);
+  o1.frequency.exponentialRampToValueAtTime(f, t + 0.04);
+  var o2 = c.createOscillator(); o2.type = 'sine';
+  o2.frequency.setValueAtTime(f * 2.004, t);
+  var g2 = c.createGain(); g2.gain.value = 0.3;
+  o1.connect(g); o2.connect(g2); g2.connect(g);
+  g.connect(lp); lp.connect(cmpMaster);
+  var peak = 0.2 * vel, dur = 0.26;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(peak, t + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o1.start(t); o2.start(t); o1.stop(t + dur + 0.02); o2.stop(t + dur + 0.02);
+  cmpTick(0.045 * vel);
+}
+/* the wall: two detuned low oscillators beating against each other, plus a thud */
+function cmpPlayWall() {
+  var c = cmpAudio(); if (!c) return;
+  var t = c.currentTime + 0.001;
+  var lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 300; lp.Q.value = 0.4;
+  var g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.24, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
+  var a = c.createOscillator(); a.type = 'triangle';
+  a.frequency.setValueAtTime(104, t); a.frequency.exponentialRampToValueAtTime(82, t + 0.12);
+  var b = c.createOscillator(); b.type = 'sawtooth'; b.frequency.value = 97.7;
+  var bg = c.createGain(); bg.gain.value = 0.35;
+  a.connect(g); b.connect(bg); bg.connect(g); g.connect(lp); lp.connect(cmpMaster);
+  a.start(t); b.start(t); a.stop(t + 0.22); b.stop(t + 0.22);
+  var s = cmpNoise();
+  if (s) {
+    var nlp = c.createBiquadFilter(); nlp.type = 'lowpass'; nlp.frequency.value = 700;
+    var ng = c.createGain();
+    ng.gain.setValueAtTime(0.10, t);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    s.connect(nlp); nlp.connect(ng); ng.connect(cmpMaster);
+    s.start(t); s.stop(t + 0.09);
+  }
+}
+
+/* ---- the odometer drum ---- */
+var cmpSlots = [cmpOdo.children[0], cmpOdo.children[1]];
+cmpSlots.forEach(function (s) { s.dataset.ch = ''; });
+var CMP_IN_EASE = 'cubic-bezier(.2,1.45,.36,1)';   /* overshoot & settle */
+var CMP_OUT_EASE = 'cubic-bezier(.32,.9,.3,1)';
+function cmpDigit(ch) {
+  var el = document.createElement('span');
+  el.className = 'd'; el.textContent = ch;
+  return el;
+}
+function cmpRollSlot(slot, ch, dir) {
+  var old = slot.querySelector('.d:not(.dead)');
+  // a fast hold can outrun the animation — retire anything still on screen
+  Array.prototype.forEach.call(slot.querySelectorAll('.d.dead'), function (e) { e.remove(); });
+  var next = cmpDigit(ch);
+  slot.appendChild(next);
+  if (!old) return;
+  old.classList.add('dead');
+  if (cmpReduce()) {
+    next.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 110, fill: 'both' });
+    var fo = old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 110, fill: 'both' });
+    fo.onfinish = function () { old.remove(); };
+    return;
+  }
+  var from = dir > 0 ? 100 : -100;   /* increment: the new digit rises from below */
+  var to   = dir > 0 ? -100 : 100;
+  next.animate(
+    [{ transform: 'translateY(' + from + '%)', opacity: .3 }, { transform: 'translateY(0%)', opacity: 1 }],
+    { duration: 400, easing: CMP_IN_EASE, fill: 'both' });
+  var a = old.animate(
+    [{ transform: 'translateY(0%)', opacity: 1 }, { transform: 'translateY(' + to + '%)', opacity: 0 }],
+    { duration: 260, easing: CMP_OUT_EASE, fill: 'both' });
+  a.onfinish = function () { old.remove(); };
+}
+var cmpRollTimer = null;
+function cmpRender(val, dir, animate) {
+  var s = String(val);
+  var chars = s.length === 2 ? [s[0], s[1]] : ['', s[0]];
+  var moved = false;
+  cmpSlots.forEach(function (slot, i) {
+    var ch = chars[i];
+    slot.classList.toggle('empty', ch === '');
+    if (slot.dataset.ch === ch) return;         /* per-digit: only what changed rolls */
+    slot.dataset.ch = ch;
+    moved = true;
+    if (!animate) {
+      slot.innerHTML = '';
+      if (ch !== '') slot.appendChild(cmpDigit(ch));
+    } else if (ch === '') {
+      var gone = slot.querySelector('.d:not(.dead)');
+      if (gone) { gone.classList.add('dead'); gone.remove(); }
+    } else {
+      cmpRollSlot(slot, ch, dir);
+    }
+  });
+  if (moved && animate && !cmpReduce()) {
+    cmpCountEl.classList.add('rolling');
+    clearTimeout(cmpRollTimer);
+    cmpRollTimer = setTimeout(function () { cmpCountEl.classList.remove('rolling'); }, 420);
+  }
+}
+
+/* ---- the ladder. Three static per-rung facts do the work hue would have: a
+   steeper height ramp, a bar that thickens as it climbs, and `--g`, the bloom
+   licence, zero below rung 7 and 1 at rung 12 — only a high count can glow. ---- */
+for (var cmpRi = 0; cmpRi < CMP_MAX; cmpRi++) {
+  var cmpRung = document.createElement('i');
+  cmpRung.style.height = (4 + cmpRi * 1.0).toFixed(1) + 'px';
+  cmpRung.style.width  = (2 + cmpRi * 0.08).toFixed(2) + 'px';
+  cmpRung.style.setProperty('--c', 'var(--lum-' + (cmpRi + 1) + ')');
+  cmpRung.style.setProperty('--g', Math.max(0, (cmpRi - 5) / 6).toFixed(3));
+  cmpLadder.appendChild(cmpRung);
+}
+/* how far a filled rung is pushed toward its own stop. The floor is high: with
+   no hue to announce itself, one lit rung at count 1 must clear the unfilled
+   grey on lightness alone. */
+var CMP_MIX_FLOOR = 0.7;
+var cmpLitTimer = null, cmpPrevTop = 0;   /* wave origin: the last struck rung */
+function cmpLightLadder(val, wall) {
+  cmpLadder.classList.toggle('wall', !!wall);
+  var heat = (val - CMP_MIN) / (CMP_MAX - CMP_MIN);
+  var k = CMP_MIX_FLOOR + (1 - CMP_MIX_FLOOR) * heat;
+  var origin = cmpPrevTop || val;
+  var step = cmpReduce() ? 0 : 26;
+  Array.prototype.forEach.call(cmpLadder.children, function (r, idx) {
+    var n = idx + 1, filled = n <= val;
+    r.classList.toggle('on', n === val);
+    r.classList.toggle('past', n < val);
+    r.classList.toggle('off', !filled);
+    /* the wave leaves the rung that just changed and runs to the new top */
+    r.style.transitionDelay = Math.min(Math.abs(n - origin) * step, 300) + 'ms';
+    r.style.setProperty('--k', filled ? k.toFixed(3) : '0');
+  });
+  cmpPrevTop = val;
+  cmpLadder.classList.add('lit');
+  clearTimeout(cmpLitTimer);
+  cmpLitTimer = setTimeout(function () { cmpLadder.classList.remove('lit'); }, 1100);
+}
+
+/* ---- the one entry point ---- */
+var cmpLastSoundAt = 0, cmpLastWallAt = 0;
+function setCmpCount(n, echo, dirHint) {
+  var next = clamp(Math.round(n) || CMP_MIN, CMP_MIN, CMP_MAX);
+  var dir = next > cmpCount ? 1 : next < cmpCount ? -1 : (dirHint || 0);
+  var changed = next !== cmpCount;
+  cmpCount = next;
+  if (echo !== false) cmpN.value = String(cmpCount);
+  cmpMinus.classList.toggle('off', cmpCount <= CMP_MIN);
+  cmpPlus.classList.toggle('off', cmpCount >= CMP_MAX);
+  cmpMinus.title = cmpCount <= CMP_MIN ? 'Already at 1 variant' : 'Fewer variants';
+  cmpPlus.title  = cmpCount >= CMP_MAX ? 'Already at 12 variants' : 'More variants';
+  cmpRender(cmpCount, dir, changed);
+  cmpLightLadder(cmpCount, false);
+  if (!changed) return;
+  /* a hold degrades gracefully: skip anything under 45ms and duck the velocity
+     of a fast run, so it reads as one gesture rather than machine-gun blips */
+  var now = performance.now(), gap = now - cmpLastSoundAt;
+  if (gap >= 45) {
+    cmpLastSoundAt = now;
+    cmpPlayNote(cmpCount, clamp(0.5 + (gap / 260) * 0.5, 0.5, 1));
+  }
+}
+function cmpWall(dir) {
+  var now = performance.now();
+  cmpCountEl.classList.remove('wall-hi', 'wall-lo');
+  void cmpCountEl.offsetWidth;
+  if (!cmpReduce()) cmpCountEl.classList.add(dir > 0 ? 'wall-hi' : 'wall-lo');
+  cmpLightLadder(cmpCount, true);
+  if (now - cmpLastWallAt >= 380) { cmpLastWallAt = now; cmpPlayWall(); }
+}
+/* the buttons look spent at the wall but still receive the press, so pushing
+   against the ceiling answers instead of going silent */
+function cmpBump(dir) {
+  cmpAudio();
+  if (dir > 0 && cmpCount >= CMP_MAX) { cmpWall(1); return; }
+  if (dir < 0 && cmpCount <= CMP_MIN) { cmpWall(-1); return; }
+  setCmpCount(cmpCount + dir, true, dir);
+}
+function cmpHoldable(btn, dir) {
+  var t0 = null, t1 = null, n = 0;
+  function start(e) {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    cmpBump(dir); n = 0;
+    t0 = setTimeout(function repeat() {
+      n++;
+      cmpBump(dir);
+      t1 = setTimeout(repeat, Math.max(60, 110 - n * 6));
+    }, 380);
+  }
+  function stop() { clearTimeout(t0); clearTimeout(t1); }
+  btn.addEventListener('pointerdown', start);
+  window.addEventListener('pointerup', stop);
+  window.addEventListener('pointercancel', stop);
+  btn.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cmpBump(dir); }
+  });
+}
+cmpHoldable(cmpMinus, -1);
+cmpHoldable(cmpPlus, 1);
 // while typing, track the value but leave the field alone so "1" on the way to "10" isn't clamped out
-cmpN.addEventListener('input', function () { if (cmpN.value !== '') setCmpCount(+cmpN.value, false); });
+cmpN.addEventListener('input', function () { if (cmpN.value !== '') { cmpAudio(); setCmpCount(+cmpN.value, false); } });
 cmpN.addEventListener('blur', function () { setCmpCount(cmpCount); });
 cmpN.addEventListener('keydown', function (e) {
   if (e.key === 'Enter') { e.preventDefault(); setCmpCount(cmpCount); doDerive(); }
-  else if (e.key === 'ArrowUp') { e.preventDefault(); setCmpCount(cmpCount + 1); }
-  else if (e.key === 'ArrowDown') { e.preventDefault(); setCmpCount(cmpCount - 1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); cmpBump(1); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); cmpBump(-1); }
 });
 setCmpCount(cmpCount);
+/* grade the ladder for the resting count without leaving it flashed 'lit' */
+clearTimeout(cmpLitTimer);
+cmpLadder.classList.remove('lit');
 
 for (var ai = 0; ai < ispAspect.children.length; ai++) {
   ispAspect.children[ai].addEventListener('click', function () { setAspect(this.getAttribute('data-a')); });
