@@ -75,7 +75,6 @@ function loadVariants(name, task) {
         parent: meta.parent || null,
         // a combine names every parent it was mixed from; parent stays the primary one
         parents: Array.isArray(meta.parents) ? meta.parents.filter((p) => typeof p === "string") : null,
-        tweak: meta.tweak === true, // tweak revisions fold into their root node's rail instead of branching
         url: meta.url || null, // url variants render a live route instead of the file body
         // min: a copied / restored tree keeps its mtimes but is born now
         ts: new Date(Math.min(st.birthtimeMs || Infinity, st.mtimeMs)).toISOString(),

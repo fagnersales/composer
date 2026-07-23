@@ -133,62 +133,16 @@
   }
   .node.building .build { display: flex; }
   .node .build .req { max-width: 250px; text-align: center; color: var(--text-tertiary); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .node .build .cancel, .node .twk .cancel {
+  .node .build .cancel {
     margin-top: 2px; padding: 5px 14px; border-radius: var(--radius-full);
     border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-secondary);
     cursor: pointer; font-size: 11px; font-family: var(--font-sans); font-weight: var(--weight-medium);
     transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   }
-  .node .build .cancel:hover, .node .twk .cancel:hover { background: var(--bg-subtle); border-color: var(--border-strong); color: var(--text-primary); }
+  .node .build .cancel:hover { background: var(--bg-subtle); border-color: var(--border-strong); color: var(--text-primary); }
   .node .spin { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(128,128,128,0); } 50% { box-shadow: 0 0 0 3px var(--ring); } }
-
-  /* tweak-in-flight: the whole card re-weaves under one shimmer clock — a
-     sweep across the dimmed card, the same sweep on the rail's working chip,
-     and a centered layer carrying the tweak + Cancel. The current revision
-     stays faintly visible underneath: a tweak edits THIS design in place. */
-  .node .twk {
-    position: absolute; inset: 0; z-index: 4; display: none; flex-direction: column;
-    align-items: center; justify-content: center; gap: 10px;
-    border-radius: 13px; overflow: hidden; background: var(--bg-overlay);
-    color: var(--text-secondary); font-size: 12px;
-  }
-  .node.tweaking .twk { display: flex; }
-  .node .twk .tw { max-width: 250px; text-align: center; color: var(--text-tertiary); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .shimmer::before {
-    content: ''; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.09) 50%, transparent 60%);
-    background-size: 250% 100%;
-    animation: sweep 1.6s linear infinite;
-  }
-  @keyframes sweep { from { background-position: 200% 0; } to { background-position: -150% 0; } }
-
-  /* revision rail: tweaks don't branch — they stack as version chips hanging
-     off the node's bottom edge. Nodes with a single revision only offer the
-     "+" stub, revealed on hover/selection so the canvas stays quiet. */
-  .rail { position: absolute; top: 100%; left: 0; right: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; cursor: default; }
-  .rail .rl { width: 8px; height: 12px; border-left: 1px solid var(--border-strong); border-right: 1px solid var(--border-strong); }
-  .rail .chips { display: flex; gap: 4px; align-items: center; }
-  .rail.stub { opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out); }
-  .node:hover .rail.stub, .node.selected .rail.stub { opacity: 1; pointer-events: auto; }
-  .chip {
-    height: 22px; min-width: 27px; padding: 0 8px; border-radius: var(--radius-full);
-    border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-secondary);
-    font-size: 10.5px; font-family: var(--font-mono); font-weight: var(--weight-medium);
-    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-    box-shadow: var(--shadow-sm);
-    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-  }
-  .chip:hover { border-color: var(--border-strong); color: var(--text-primary); }
-  .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: var(--weight-semibold); }
-  .chip.add { border-style: dashed; color: var(--text-tertiary); font-family: var(--font-sans); font-size: 13px; }
-  .chip.add:hover { color: var(--text-primary); border-color: var(--border-strong); }
-  .chip.working { position: relative; overflow: hidden; border-style: dashed; gap: 3px; }
-  .chip.working i { width: 3px; height: 3px; border-radius: 50%; background: var(--text-secondary); animation: breathe 1.2s ease-in-out infinite; }
-  .chip.working i:nth-child(2) { animation-delay: .2s; }
-  .chip.working i:nth-child(3) { animation-delay: .4s; }
-  @keyframes breathe { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
 
   /* hud */
   #hud { position: fixed; top: 14px; left: 16px; z-index: 20; font-size: 12px; color: var(--text-secondary); pointer-events: none; display: flex; align-items: center; }
@@ -546,6 +500,9 @@
   #ispPick { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
   #ispPick:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
   #ispPick.on { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-semibold); }
+  /* the frame itself goes fullscreen — sized in px normally, so force it to the viewport */
+  #ispFrame:fullscreen { width: 100vw !important; height: 100vh !important; border-radius: 0; }
+  #ispFrame:-webkit-full-screen { width: 100vw !important; height: 100vh !important; border-radius: 0; }
   @keyframes inspFade { from { opacity: 0; } }
   @keyframes inspPop { from { opacity: 0; transform: scale(.98) translateY(6px); } }
 
@@ -639,6 +596,7 @@
           <button data-a="16:9" class="on">16:9</button><button data-a="21:9">21:9</button><button data-a="1:1">1:1</button><button data-a="9:16">9:16</button>
         </div>
         <div class="insp-actions">
+          <button id="ispFull" title="Fullscreen ( F )">Fullscreen</button>
           <button id="ispIterate" title="Iterate on this variant ( I )">Iterate…</button>
           <button id="ispPause">Pause</button>
           <button id="ispRestart">Restart</button>
@@ -836,13 +794,13 @@ function adoptGhostSlot(parentId) {
    landed, and what lets a fresh load rebuild the rows exactly as they grew.
    Slots fill oldest first with the children the parent gained after the
    request was sent. */
-function bornAt(n) { var r = n.revs && n.revs[0]; return (r && Date.parse(r.ts)) || 0; }
+function bornAt(n) { return Date.parse(n.ts) || 0; }
 function iterateSlots() {
   // oldest first: sibling requests on one parent claim their children in turn
   var rows = reqLog.filter(function (rq) { return rq.count && rq.variants && rq.variants.length; }).reverse();
   var claimed = {};
   return rows.map(function (rq) {
-    var pid = fileToNode[rq.variants[0]] || rq.variants[0], sent = Date.parse(rq.ts) || 0;
+    var pid = rq.variants[0], sent = Date.parse(rq.ts) || 0;
     var kids = state.nodes.filter(function (n) {
       return n.parentId === pid && !claimed[n.id] && bornAt(n) > sent;
     }).sort(function (a, b) { return bornAt(a) - bornAt(b); }).slice(0, rq.count);
@@ -1010,10 +968,7 @@ function createNodeEl(n) {
     '<div class="preview"><div class="scaler"><iframe sandbox="allow-scripts" scrolling="no"></iframe></div>' +
     '<div class="build"><div class="spin"></div><span>building…</span><span class="req"></span>' +
     '<button class="cancel" type="button" title="Cancel this iterate request">Cancel</button></div></div>' +
-    '<div class="foot"><span class="ttl"><span class="crown">♔</span><span class="nm"></span></span><span class="mdl"><i></i><span class="mt"></span></span></div>' +
-    '<div class="twk shimmer"><div class="spin"></div><span class="tw"></span>' +
-    '<button class="cancel" type="button" title="Cancel this tweak">Cancel</button></div>' +
-    '<div class="rail" hidden><span class="rl"></span><div class="chips"></div></div>';
+    '<div class="foot"><span class="ttl"><span class="crown">♔</span><span class="nm"></span></span><span class="mdl"><i></i><span class="mt"></span></span></div>';
   d.addEventListener('mousedown', function (e) {
     if (e.button !== 0) return;
     e.stopPropagation();
@@ -1028,12 +983,6 @@ function createNodeEl(n) {
   var cx = d.querySelector('.build .cancel');
   cx.addEventListener('mousedown', function (e) { e.stopPropagation(); });
   cx.addEventListener('click', function (e) { e.stopPropagation(); if (n.reqId) cancelRequest(n.reqId); });
-  var ax = d.querySelector('.twk .cancel');
-  ax.addEventListener('mousedown', function (e) { e.stopPropagation(); });
-  ax.addEventListener('click', function (e) { e.stopPropagation(); if (n.tweaking) cancelRequest(n.tweaking.reqId); });
-  var rl = d.querySelector('.rail');
-  rl.addEventListener('mousedown', function (e) { e.stopPropagation(); });
-  rl.addEventListener('dblclick', function (e) { e.stopPropagation(); });
   world.appendChild(d);
   nodeEls[n.id] = d;
   updateNodePos(n);
@@ -1063,75 +1012,8 @@ function updateNodeVisual(n) {
   d.querySelector('.mdl i').style.background = modelColor(n.model);
 }
 
-/* ---------- revisions (tweaks) ----------
-   A tweak variant (meta "tweak":true) is a REVISION of its parent, not a
-   branch: the whole parent-chain of tweak files folds into one node whose
-   rail shows v1·v2·… chips. state.winner is a FILE id — map it to its node. */
-var fileToNode = {}; // variant file -> the node (revision root) it belongs to
-function winnerNodeId() { return state.winner ? (fileToNode[state.winner] || state.winner) : null; }
-function activeRevId(n) { return n.revs ? n.revs[n.rev].id : n.id; }
-function setRev(n, i) {
-  n.rev = clamp(i, 0, n.revs.length - 1);
-  var r = n.revs[n.rev];
-  n.name = r.name; n.model = r.model; n.description = r.description; n.html = r.html; n.url = r.url;
-  var d = nodeEls[n.id];
-  if (d && n._shown !== r.id) {
-    n._shown = r.id;
-    var ifr = d.querySelector('iframe');
-    if (r.url) { ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin'); ifr.src = r.url; }
-    else { ifr.removeAttribute('src'); ifr.setAttribute('sandbox', 'allow-scripts'); ifr.srcdoc = r.html; }
-  }
-  updateNodeVisual(n);
-  renderRail(n);
-  if (state.inspectId === n.id) {
-    ispName.textContent = n.name;
-    ispDesc.textContent = n.description;
-    ispModel.textContent = n.model;
-    buildInspFrame(n);
-  }
-}
-function renderRail(n) {
-  var d = nodeEls[n.id];
-  if (!d || n.building) return;
-  var rail = d.querySelector('.rail');
-  var chips = rail.querySelector('.chips');
-  var many = n.revs && n.revs.length > 1;
-  var working = !!n.tweaking;
-  rail.hidden = false;
-  rail.classList.toggle('stub', !many && !working);
-  chips.innerHTML = '';
-  if (many) n.revs.forEach(function (r, i) {
-    var c = document.createElement('button');
-    c.className = 'chip' + (i === n.rev ? ' on' : '');
-    c.type = 'button';
-    c.textContent = 'v' + (i + 1);
-    c.title = r.description || r.name;
-    c.addEventListener('click', function (e) { e.stopPropagation(); setRev(n, i); });
-    chips.appendChild(c);
-  });
-  if (working) {
-    var w = document.createElement('button');
-    w.className = 'chip working shimmer';
-    w.type = 'button';
-    w.title = '“' + n.tweaking.text + '” — click to cancel';
-    w.innerHTML = '<i></i><i></i><i></i>';
-    w.addEventListener('click', function (e) { e.stopPropagation(); cancelRequest(n.tweaking.reqId); });
-    chips.appendChild(w);
-  } else {
-    var add = document.createElement('button');
-    add.className = 'chip add';
-    add.type = 'button';
-    add.title = 'Tweak — one small change';
-    add.textContent = '+';
-    add.addEventListener('click', function (e) {
-      e.stopPropagation();
-      select(n.id);
-      setCmpModeType('tweak');
-      cmpInput.focus();
-    });
-    chips.appendChild(add);
-  }
-}
+/* one node per variant file — state.winner is that file's id directly */
+function winnerNodeId() { return state.winner || null; }
 
 /* ---------- edges ---------- */
 function edgePath(p, ch) {
@@ -1250,67 +1132,41 @@ function handleNavKey(key) {
 /* ---------- server sync ---------- */
 function refreshVariants(announce) {
   return fetch(API + '/t/' + TASK + '/variants').then(function (r) { return r.json(); }).then(function (list) {
-    // fold tweak chains into their revision root: one node, many revisions
-    var map = {};
-    list.forEach(function (v) { map[v.id] = v; });
-    function rootIdOf(id) {
-      var v = map[id], guard = 0;
-      while (v && v.tweak && v.parent && map[v.parent] && guard++ < 100) v = map[v.parent];
-      return v ? v.id : id;
-    }
-    var groups = {}, order = [];
-    fileToNode = {};
-    list.forEach(function (v) {
-      var rid = rootIdOf(v.id);
-      fileToNode[v.id] = rid;
-      if (!groups[rid]) { groups[rid] = []; order.push(rid); }
-      groups[rid].push(v);
-    });
+    // one node per variant file — a tweak lands as a child card like any other
     var seen = {};
     var added = 0;
     var rootIdx = state.nodes.filter(function (n) { return n.parentId == null; }).length;
-    order.forEach(function (rid) {
-      seen[rid] = true;
-      var revs = groups[rid];
-      var root = map[rid] || revs[0];
-      var parentId = root.parent ? (fileToNode[root.parent] || root.parent) : null;
+    list.forEach(function (v) {
+      seen[v.id] = true;
+      var parentId = v.parent || null;
       // a combine lists every parent it was mixed from; the extras keep their
       // ghostly strands once the real card lands where the ghost stood
       var extra = [];
-      (root.parents || []).forEach(function (f) {
-        var pid = fileToNode[f] || f;
-        if (pid !== parentId && pid !== rid && extra.indexOf(pid) < 0) extra.push(pid);
+      (v.parents || []).forEach(function (f) {
+        if (f !== parentId && f !== v.id && extra.indexOf(f) < 0) extra.push(f);
       });
-      var existing = byId(rid);
+      var existing = byId(v.id);
       if (existing) {
-        var grew = revs.length - (existing.revs ? existing.revs.length : 1);
-        existing.revs = revs;
         existing.parentId = parentId;
         if (extra.length) existing.extraParents = extra;
-        // a fresh revision becomes the shown one; otherwise stay where the user was
-        setRev(existing, grew > 0 ? revs.length - 1 : existing.rev || 0);
-        if (grew > 0) added += grew;
         return;
       }
-      var pos = savedPos[rid];
+      var pos = savedPos[v.id];
       if (!pos) {
         var parent = parentId ? byId(parentId) : null;
         pos = parent
-          ? (adoptGhostSlot(parent.id) || placeArrival(parent, Date.parse(root.ts) || 0))
+          ? (adoptGhostSlot(parent.id) || placeArrival(parent, Date.parse(v.ts) || 0))
           : placeRoot(rootIdx++);
       }
       var n = {
-        id: rid, revs: revs, rev: revs.length - 1, parentId: parentId,
+        id: v.id, parentId: parentId, ts: v.ts,
         extraParents: extra.length ? extra : (pos.extraParents || []),
+        name: v.name, model: v.model, description: v.description, html: v.html, url: v.url,
         x: pos.x, y: pos.y, building: false
       };
-      var r = revs[n.rev];
-      n.name = r.name; n.model = r.model; n.description = r.description; n.html = r.html; n.url = r.url;
-      n._shown = r.id;
       state.nodes.push(n);
       createNodeEl(n);
-      renderRail(n);
-      added += revs.length;
+      added++;
     });
     state.nodes = state.nodes.filter(function (n) {
       if (seen[n.id]) return true;
@@ -1357,7 +1213,7 @@ function refreshRequests() {
         var g = {
           id: gid, name: 'building…', model: 'fleet', description: '',
           parentId: parent.id,
-          extraParents: rq.variants.slice(1).map(function (f) { return fileToNode[f] || f; }),
+          extraParents: rq.variants.slice(1),
           html: '', x: pos.x, y: pos.y, building: true, reqText: rq.text, reqId: rq.id
         };
         state.ghosts.push(g);
@@ -1368,24 +1224,6 @@ function refreshRequests() {
       if (wanted[g.id]) return true;
       removeNodeEl(g.id);
       return false;
-    });
-    // open tweak requests shimmer their node in place — no ghost, no branch
-    var tweakWanted = {};
-    reqs.forEach(function (rq) {
-      if (rq.type !== 'tweak' || rq.status === 'done' || rq.status === 'cancelled' || !rq.variants || !rq.variants.length) return;
-      var nid = fileToNode[rq.variants[0]] || rq.variants[0];
-      // show just the change — the "Tweak "name" — " preamble is for the fleet
-      if (!tweakWanted[nid]) tweakWanted[nid] = { reqId: rq.id, text: rq.text.replace(/^Tweak "[^"]*" — /, '') };
-    });
-    state.nodes.forEach(function (n) {
-      var a = tweakWanted[n.id] || null;
-      var changed = (!!a !== !!n.tweaking) || (a && n.tweaking && a.reqId !== n.tweaking.reqId);
-      n.tweaking = a;
-      var d = nodeEls[n.id];
-      if (!d) return;
-      d.classList.toggle('tweaking', !!a);
-      if (a) d.querySelector('.twk .tw').textContent = '“' + a.text + '”';
-      if (changed) renderRail(n);
     });
     renderEdges();
     renderMinimap();
@@ -1426,8 +1264,7 @@ function doIterate() {
   var text = 'Iterate ' + cmpCount + ' new variant' + (cmpCount > 1 ? 's' : '') +
     (parents.length > 1 ? ' combining ' + names : ' from ' + names) + (req ? ' — ' + req : '') +
     (imgs.length ? ' (see the ' + (imgs.length > 1 ? imgs.length + ' attached reference images' : 'attached reference image') + ')' : '');
-  // iterate from what is on screen: the ACTIVE revision of each parent
-  var ids = parents.map(activeRevId);
+  var ids = parents.map(function (p) { return p.id; });
   sendRequest(text, ids, cmpCount, 'iterate', imgs).then(function () {
     cmpInput.value = '';
     cmpClearImages();
@@ -1437,14 +1274,15 @@ function doIterate() {
   });
 }
 
-/* ---------- tweak (same design, one small change) ---------- */
+/* ---------- tweak (one small change, lands as a child card) ---------- */
 function doTweak() {
   var n = selPrimary();
   if (!n) return;
   if (!fleetLive) { cmpShowNote('Fleet offline — run /composer to reconnect.'); return; }
   var req = cmpInput.value.trim();
   if (!req) { cmpShowNote('Describe the tweak first.', 2600); return; }
-  sendRequest('Tweak "' + n.name + '" — ' + req, [activeRevId(n)], null, 'tweak').then(function () {
+  // count:1 so the board draws a ghost child slot for it, like an iterate
+  sendRequest('Tweak "' + n.name + '" — ' + req, [n.id], 1, 'tweak').then(function () {
     cmpInput.value = '';
     cmpLayout(true);
     cmpShowNote('<i class="dot"></i>Sent · tweak', 3800);
@@ -1520,11 +1358,24 @@ function closeInspectIterate() {
 }
 /* Esc peels one layer at a time: iterate panel, then overlay, then selection */
 function escAction() {
+  // fullscreen is the outermost layer — the browser exits it on Esc; don't also peel the overlay
+  if (document.fullscreenElement || document.webkitFullscreenElement) return;
   // the model card is the shallowest thing open — Esc folds it before anything else
   if (composer.classList.contains('dialopen')) { cmpSetDialOpen(false); return; }
   if (composer.classList.contains('in-inspect')) closeInspectIterate();
   else if (state.inspectId != null) closeInspect();
   else select(null);
+}
+/* fullscreen the frame wrapper (not the iframe) so Restart keeps working inside it */
+function toggleFullscreen() {
+  var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl) {
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  } else if (state.inspectId != null) {
+    if (ispFrame.requestFullscreen) ispFrame.requestFullscreen();
+    else if (ispFrame.webkitRequestFullscreen) ispFrame.webkitRequestFullscreen();
+  }
 }
 function togglePause() {
   if (!inspIframe) return;
@@ -1540,7 +1391,7 @@ function setWinner(id) {
   if (!fleetLive) { toast('Fleet offline — run /composer in the project to reconnect'); return; }
   var n = byId(id);
   if (!n) return;
-  var file = activeRevId(n); // the winner is the revision on screen
+  var file = n.id;
   state.winner = file; // optimistic; server truth arrives via refreshRequests
   allNodes().forEach(updateNodeVisual);
   renderMinimap();
@@ -1739,10 +1590,11 @@ function cmpSyncInline() {
 }
 
 /* ---------- the Iterate | Tweak mode toggle ----------
-   One vocabulary end to end: the labels, the request `type:"iterate"`/`"tweak"`
-   and the variant meta `"tweak":true` all say the same word.
+   One vocabulary end to end: the labels and the request
+   `type:"iterate"`/`"tweak"` say the same word.
    The active segment is the only mode signal — no accent shift, no title.
-   Tweak is the featherweight path: one node, one change, no count. */
+   Tweak is the featherweight path: one small change, always a single
+   child card — no count to choose. */
 var cmpModeType = 'iterate';
 function cmpApplyPlaceholder() {
   cmpInput.placeholder = cmpModeType === 'tweak' ? 'One tweak — e.g. 600ms not 200ms'
@@ -2215,6 +2067,7 @@ for (var ai = 0; ai < ispAspect.children.length; ai++) {
 document.getElementById('ispIterate').addEventListener('click', function () {
   if (composer.classList.contains('in-inspect')) closeInspectIterate(); else openInspectIterate();
 });
+document.getElementById('ispFull').addEventListener('click', toggleFullscreen);
 ispPause.addEventListener('click', togglePause);
 ispRestart.addEventListener('click', function () { var n = byId(state.inspectId); if (n) buildInspFrame(n); });
 ispPick.addEventListener('click', function () { if (state.inspectId != null) setWinner(state.inspectId); });
@@ -2233,6 +2086,7 @@ window.addEventListener('keydown', function (e) {
     var open = selPrimary();
     if (open) { e.preventDefault(); openInspect(open.id); }
   }
+  else if ((e.key === 'f' || e.key === 'F') && state.inspectId != null) { e.preventDefault(); toggleFullscreen(); }
   else if (e.key === 'i' || e.key === 'I') {
     if (state.inspectId != null) { e.preventDefault(); openInspectIterate(); return; }
     var sel = selPrimary();

@@ -23,9 +23,9 @@ mid-flight lands them at once. Double-click to inspect (aspect switcher + pause/
 HTML variants), select + composer to iterate children (paste or drop
 reference images into the composer to send them along; shift+click
 selects multiple variants and iterates children combining all of them).
-The composer's Iterate|Tweak toggle (or a node's "+" rail chip) switches
-to **tweak**: one small change to the selected node, delivered as a new
-revision chip on the same node instead of a branch. "Cancel" on a ghost
+The composer's Iterate|Tweak toggle switches to **tweak**: one small
+change to the selected node, delivered as a single child card (with a
+lineage edge), built inline by the fleet. "Cancel" on a ghost
 node cancels its iterate request, "Pick this one" asks the fleet to implement
 that design. Task switcher in the HUD flips between the project's past and
 current tasks. Iterate/pick are **locked while no fleet agent is
@@ -76,11 +76,6 @@ Each variant is an `.html` file whose first line is a metadata comment:
   the first of them — it draws the solid lineage edge; the rest draw ghostly
   strands. Without it the board can only show one edge, so a mix looks like it
   came from a single parent once the build finishes.
-- `tweak` (optional, boolean): this file is a **revision** of its `parent`
-  (same design, one small tweak), not a branch. The board folds the whole
-  tweak-chain into the parent's node as a revision rail (v1·v2·… chips
-  under the card, "+" to request another tweak) — no lineage edge is drawn.
-  Tweak variants MUST also set `parent`.
 - `url` (optional): for variants that are real routes on the project's dev
   server (component-based mocks) instead of self-contained HTML. The board
   iframes the URL; the file body is just a fallback note. URL variants need
@@ -97,7 +92,7 @@ GET  /api/sessions                          all sessions + tasks + live flags
 POST /api/sessions                          {name, dir} register/re-register (409 if name taken by another dir)
 POST /api/sessions/<name>/heartbeat         fleet agent liveness (90s window)
 GET  /api/s/<name>/tasks                    {live, tasks:[{slug,title,created,variants}]}
-GET  /api/s/<name>/t/<task>/variants         [{id,name,model,description,parent,parents,tweak,url,ts,html}] — ts = when the file appeared
+GET  /api/s/<name>/t/<task>/variants         [{id,name,model,description,parent,parents,url,ts,html}] — ts = when the file appeared
 GET  /api/s/<name>/t/<task>/requests
 POST /api/s/<name>/t/<task>/requests        {text, variants[], count?, type?: iterate|tweak|pick|feedback, model?: sonnet|opus|fable, images?: ["images/…"]}
 POST /api/s/<name>/t/<task>/requests/<id>/cancel
@@ -139,17 +134,16 @@ board's composer, as paths relative to the task folder (they live in its
 `images/` subfolder). The fleet agent should view them — they are visual
 guidance for the requested work.
 
-- `tweak` — `variants[0]` is the revision being tweaked; `text` carries
+- `tweak` — `variants[0]` is the variant being tweaked; `text` carries
   one small change (`Tweak "<name>" — <change>`). Always a single parent,
-  no `count`. The fleet should NOT spawn a builder for this: copy the
-  parent file to the next `NN-slug.html`, apply the tweak with targeted
-  edits, and set meta `{"tweak":true,"parent":"<parent file>"}` with the
-  tweak as `description`. While the request is open the board shimmers the
-  node in place (no ghost); the landed file becomes the node's next
-  revision chip.
+  `count` is always 1 (so the board shows one ghost child while the
+  request is open). The fleet should NOT spawn a builder for this: copy
+  the parent file to the next `NN-slug.html`, apply the tweak with
+  targeted edits, and set meta `"parent":"<parent file>"` with the tweak
+  as `description`. The landed file is a normal child card with a
+  lineage edge — same as an iterate of one.
 
-- `pick` — `variants[0]` is the chosen design (the revision the user had
-  active, if the node has several). This is **not** a file
+- `pick` — `variants[0]` is the chosen design. This is **not** a file
   operation: it tells the resident agent to *implement that design in the
   project's real code*. The newest non-cancelled pick marks the crown.
 
