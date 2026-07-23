@@ -69,6 +69,8 @@ function loadVariants(name, task) {
         model: meta.model || "",
         description: meta.description || "",
         parent: meta.parent || null,
+        // a combine names every parent it was mixed from; parent stays the primary one
+        parents: Array.isArray(meta.parents) ? meta.parents.filter((p) => typeof p === "string") : null,
         adjust: meta.adjust === true, // adjust revisions fold into their root node's rail instead of branching
         url: meta.url || null, // url variants render a live route instead of the file body
         html,

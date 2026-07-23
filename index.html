@@ -724,7 +724,8 @@ function placeRoot(i) {
   return { x: x, y: y };
 }
 /* a freshly arrived variant takes over a ghost slot of its parent's pending
-   derive request, so it lands exactly where the "building…" card was */
+   derive request, so it lands exactly where the "building…" card was — and
+   inherits its combine strands, so a mix doesn't drop back to one edge */
 var ghostFill = {}; // reqId -> ghost slots already consumed by arrived variants
 function adoptGhostSlot(parentId) {
   for (var i = 0; i < state.ghosts.length; i++) {
@@ -733,7 +734,7 @@ function adoptGhostSlot(parentId) {
     ghostFill[g.reqId] = (ghostFill[g.reqId] || 0) + 1;
     state.ghosts.splice(i, 1);
     removeNodeEl(g.id);
-    return { x: g.x, y: g.y };
+    return { x: g.x, y: g.y, extraParents: g.extraParents };
   }
   return null;
 }
@@ -1019,11 +1020,19 @@ function refreshVariants(announce) {
       var revs = groups[rid];
       var root = map[rid] || revs[0];
       var parentId = root.parent ? (fileToNode[root.parent] || root.parent) : null;
+      // a combine lists every parent it was mixed from; the extras keep their
+      // ghostly strands once the real card lands where the ghost stood
+      var extra = [];
+      (root.parents || []).forEach(function (f) {
+        var pid = fileToNode[f] || f;
+        if (pid !== parentId && pid !== rid && extra.indexOf(pid) < 0) extra.push(pid);
+      });
       var existing = byId(rid);
       if (existing) {
         var grew = revs.length - (existing.revs ? existing.revs.length : 1);
         existing.revs = revs;
         existing.parentId = parentId;
+        if (extra.length) existing.extraParents = extra;
         // a fresh revision becomes the shown one; otherwise stay where the user was
         setRev(existing, grew > 0 ? revs.length - 1 : existing.rev || 0);
         if (grew > 0) added += grew;
@@ -1034,7 +1043,11 @@ function refreshVariants(announce) {
         var parent = parentId ? byId(parentId) : null;
         pos = parent ? (adoptGhostSlot(parent.id) || placeNewChild(parent)) : placeRoot(rootIdx++);
       }
-      var n = { id: rid, revs: revs, rev: revs.length - 1, parentId: parentId, x: pos.x, y: pos.y, building: false };
+      var n = {
+        id: rid, revs: revs, rev: revs.length - 1, parentId: parentId,
+        extraParents: extra.length ? extra : (pos.extraParents || []),
+        x: pos.x, y: pos.y, building: false
+      };
       var r = revs[n.rev];
       n.name = r.name; n.model = r.model; n.description = r.description; n.html = r.html; n.url = r.url;
       n._shown = r.id;

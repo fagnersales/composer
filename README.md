@@ -67,6 +67,11 @@ Each variant is an `.html` file whose first line is a metadata comment:
 
 - `parent` (optional): filename of the variant this one was derived from —
   draws the lineage edge. Derived variants MUST set it.
+- `parents` (optional, array of filenames): every parent a **combine** was
+  mixed from (`variants` of the derive request, in order). `parent` must stay
+  the first of them — it draws the solid lineage edge; the rest draw ghostly
+  strands. Without it the board can only show one edge, so a mix looks like it
+  came from a single parent once the build finishes.
 - `adjust` (optional, boolean): this file is a **revision** of its `parent`
   (same design, one small tweak), not a branch. The board folds the whole
   adjust-chain into the parent's node as a revision rail (v1·v2·… chips

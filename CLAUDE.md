@@ -20,8 +20,10 @@ session→dir registry.
    everything (that's the user's generation history, together with the
    board's task switcher).
 3. Variants are `NN-slug.html` files starting with a
-   `<!--variant-meta {"name","model","description","parent"?,"adjust"?,"url"?}-->`
-   comment. `parent` draws the lineage edge; `adjust:true` makes the file a
+   `<!--variant-meta {"name","model","description","parent"?,"parents"?,"adjust"?,"url"?}-->`
+   comment. `parent` draws the lineage edge (a combine also carries
+   `parents`: every parent it was mixed from, `parent` first — the extras
+   draw ghostly strands); `adjust:true` makes the file a
    revision of its parent instead (folded into that node's v1·v2·… rail, no
    edge); `url` makes the board iframe a
    live dev-server route instead of the file body.
