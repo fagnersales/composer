@@ -91,14 +91,17 @@ Any file written into a task's `variants/` appears on that board instantly.
 GET  /api/sessions                          all sessions + tasks + live flags
 POST /api/sessions                          {name, dir} register/re-register (409 if name taken by another dir)
 POST /api/sessions/<name>/heartbeat         fleet agent liveness (90s window)
-GET  /api/s/<name>/tasks                    {live, tasks:[{slug,title,created,variants}]}
+GET  /api/s/<name>/tasks                    {live, tasks:[{slug,title,created,variants}], phone:"http://<lan-ip>:<port>/m/<name>"}
 GET  /api/s/<name>/t/<task>/variants         [{id,name,model,description,parent,parents,url,ts,html}] — ts = when the file appeared
 GET  /api/s/<name>/t/<task>/requests
 POST /api/s/<name>/t/<task>/requests        {text, variants[], count?, type?: iterate|tweak|pick|feedback, model?: sonnet|opus|fable, images?: ["images/…"]}
 POST /api/s/<name>/t/<task>/requests/<id>/cancel
 POST /api/s/<name>/t/<task>/images          raw image body (Content-Type: image/png|jpeg|gif|webp, 10MB max) → {file:"images/<hash>.<ext>"}
 GET  /api/s/<name>/t/<task>/images/<file>   serve a stored reference image
-GET  /api/s/<name>/events?task=<slug>       SSE: {"kind":"change"} | {"kind":"status","live":bool}
+GET  /api/s/<name>/events?task=<slug>       SSE: {"kind":"change"} | {"kind":"status","live":bool} | {"kind":"focus","variant","src"}
+POST /api/s/<name>/t/<task>/focus           {variant, src} — shared "looked at" variant, broadcast to every SSE client; ephemeral, never on disk
+GET  /m/<name>?task=<slug>                  phone remote: one variant full-screen, focus synced with the board both ways
+GET  /v/<name>/<task>/<file>.html           a single variant as a standalone page (url variants 302 to their dev route, localhost rewritten to the LAN ip)
 POST /api/s/<name>/t/<task>/trace           {events:[…]} — board debug events, appended to the task's trace.jsonl (max 500/batch)
 GET  /api/s/<name>/t/<task>/trace           the raw trace.jsonl (NDJSON)
 ```

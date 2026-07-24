@@ -215,3 +215,28 @@
   .node.rejected .rejbtn:hover { background: rgba(229,72,77,.12); }
   .node .rejbtn svg { width: 12px; height: 12px; }
 
+
+  /* ---------- phone pairing overlay ---------- */
+  #qrOverlay {
+    position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+    background: var(--bg-overlay); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  }
+  #qrOverlay[hidden] { display: none; }
+  .qr-card {
+    width: 300px; padding: 20px; text-align: center;
+    background: var(--bg-surface); border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-pop);
+  }
+  .qr-card canvas { border-radius: var(--radius-md); background: #fff; }
+  .qr-card #qrUrl {
+    margin: 12px 0 6px; padding: 6px 8px; border-radius: var(--radius-sm);
+    background: var(--bg-muted); color: var(--text-secondary); cursor: pointer;
+    font-family: var(--font-mono); font-size: 11px; word-break: break-all;
+  }
+  .qr-card p { margin: 0 0 14px; color: var(--text-secondary); font-size: var(--text-xs); line-height: 1.5; }
+  .qr-card #qrClose {
+    padding: 7px 18px; border: 1px solid var(--border-default); border-radius: var(--radius-full);
+    background: var(--bg-surface); color: var(--text-primary); cursor: pointer;
+    font-family: var(--font-sans); font-size: var(--text-sm);
+  }
+  .qr-card #qrClose:hover { background: var(--bg-muted); }

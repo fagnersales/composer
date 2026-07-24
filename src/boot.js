@@ -40,6 +40,7 @@ fetch(API + '/tasks').then(function (r) {
   });
   sel.addEventListener('change', function () { location.href = '/b/' + SESSION + '?task=' + sel.value; });
   setLive(!!info.live);
+  PHONE_BASE = info.phone || ''; // where a phone on the LAN reaches the remote
   if (!TASK) return;
   document.title = 'Composer — ' + SESSION;
   POS_KEY = 'composer-pos:' + SESSION + ':' + TASK;
@@ -60,6 +61,7 @@ fetch(API + '/tasks').then(function (r) {
     var msg;
     try { msg = JSON.parse(ev.data); } catch (e) { return; }
     if (msg.kind === 'status') setLive(!!msg.live);
+    else if (msg.kind === 'focus') { if (msg.src !== TRACE_ID) applyRemoteFocus(msg.variant); }
     else { trace('sse:change'); refreshVariants(true).then(refreshRequests); }
   };
   es.onerror = function () { trace('sse:error'); liveEl.textContent = '○ reconnecting…'; liveEl.classList.add('off'); };

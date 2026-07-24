@@ -1,0 +1,24 @@
+{"pg":"ir1z08","seq":1,"t":"2026-07-24T04:53:38.851Z","ev":"note","msg":"Fleet offline — run /composer to reconnect.","recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":2,"t":"2026-07-24T04:53:38.851Z","ev":"boot","session":"demo","task":"coffee-hero","href":"http://localhost:4699/b/demo?task=coffee-hero","vw":1830,"vh":945,"theme":"dark","savedPositions":0,"live":false,"recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":3,"t":"2026-07-24T04:53:38.856Z","ev":"note","msg":"Fleet offline — run /composer to reconnect.","recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":4,"t":"2026-07-24T04:53:38.860Z","ev":"variant:landed","id":"01-sunrise-pour.html","name":"Sunrise Pour","model":"opus-4.8","parent":null,"x":60,"y":90,"how":"root","recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":5,"t":"2026-07-24T04:53:38.863Z","ev":"variant:landed","id":"02-midnight-brew.html","name":"Midnight Brew","model":"sonnet-5","parent":null,"x":480,"y":90,"how":"root","recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":6,"t":"2026-07-24T04:53:38.865Z","ev":"variant:landed","id":"03-paper-cup.html","name":"Paper Cup","model":"opus-4.8","parent":null,"x":900,"y":90,"how":"root","recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":7,"t":"2026-07-24T04:53:38.867Z","ev":"variant:landed","id":"04-glass-terminal.html","name":"Glass Terminal","model":"haiku-4.5","parent":null,"x":1320,"y":90,"how":"root","recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":8,"t":"2026-07-24T04:53:38.869Z","ev":"variant:landed","id":"05-amber-terminal.html","name":"Amber Terminal","model":"fable-5","parent":"01-sunrise-pour.html","x":60,"y":445,"how":"placed","recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":9,"t":"2026-07-24T04:53:38.871Z","ev":"fit","recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":10,"t":"2026-07-24T04:53:39.273Z","ev":"layout","why":"landed","nodes":[{"id":"01-sunrise-pour.html","x":60,"y":90},{"id":"02-midnight-brew.html","x":480,"y":90},{"id":"03-paper-cup.html","x":900,"y":90},{"id":"04-glass-terminal.html","x":1320,"y":90},{"id":"05-amber-terminal.html","x":60,"y":445,"p":"01-sunrise-pour.html"}],"recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":11,"t":"2026-07-24T04:53:39.372Z","ev":"camera","x":27,"y":96,"scale":1.058,"recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":12,"t":"2026-07-24T04:53:40.130Z","ev":"click","el":"button#tbPhone < div#toolbar","text":"Phone","x":288,"y":911,"wx":247,"wy":771,"recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":13,"t":"2026-07-24T04:53:40.130Z","ev":"phone:pair","url":"http://192.168.15.7:4699/m/demo?task=coffee-hero","recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":14,"t":"2026-07-24T04:53:40.506Z","ev":"click","el":"button#qrClose < div.qr-card < div#qrOverlay","text":"Close","x":915,"y":649,"wx":840,"wy":523,"recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":15,"t":"2026-07-24T04:53:40.545Z","ev":"select","selected":[],"recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":16,"t":"2026-07-24T04:53:40.545Z","ev":"click","el":"div#canvas","x":0,"y":0,"wx":-25,"wy":-91,"recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":17,"t":"2026-07-24T04:53:40.574Z","ev":"select","selected":[],"recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":18,"t":"2026-07-24T04:53:40.575Z","ev":"click","el":"div#canvas","x":0,"y":0,"wx":-25,"wy":-91,"recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":19,"t":"2026-07-24T04:53:40.575Z","ev":"dblclick","el":"div#canvas","recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":20,"t":"2026-07-24T04:53:40.576Z","ev":"select","selected":["02-midnight-brew.html"],"recv":"2026-07-24T04:53:40.854Z"}
+{"pg":"ir1z08","seq":21,"t":"2026-07-24T04:53:42.216Z","ev":"focus:remote","id":"03-paper-cup.html","recv":"2026-07-24T04:53:44.221Z"}
+{"pg":"ir1z08","seq":22,"t":"2026-07-24T04:53:42.216Z","ev":"select","selected":["03-paper-cup.html"],"recv":"2026-07-24T04:53:44.221Z"}
+{"pg":"ir1z08","seq":23,"t":"2026-07-24T04:53:52.156Z","ev":"click","el":"button#tbPhone < div#toolbar","text":"Phone","x":288,"y":911,"wx":247,"wy":771,"recv":"2026-07-24T04:53:54.161Z"}
+{"pg":"ir1z08","seq":24,"t":"2026-07-24T04:53:52.156Z","ev":"phone:pair","url":"http://192.168.15.7:4699/m/demo?task=coffee-hero","recv":"2026-07-24T04:53:54.161Z"}

@@ -2,6 +2,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -25,6 +26,13 @@ if (fs.existsSync(REG_FILE)) {
   registry = { demo: { dir: path.join(ROOT, "demo") } };
   saveRegistry();
 }
+// the address a phone on the same network reaches this hub at
+function lanIP() {
+  for (const ifs of Object.values(os.networkInterfaces()))
+    for (const i of ifs || []) if (i.family === "IPv4" && !i.internal) return i.address;
+  return "localhost";
+}
+
 const lastSeen = new Map();
 function isLive(name) { return Date.now() - (lastSeen.get(name) || 0) < LIVE_MS; }
 function taskPath(name, task) { return path.join(registry[name].dir, task); }
@@ -177,6 +185,99 @@ setInterval(() => {
   for (const g of groups.values()) for (const res of g.clients) res.write(": ping\n\n");
 }, 5000);
 
+/* ── phone remote ─────────────────────────── */
+// One variant full-screen on a phone, walking the same list as the board.
+// Focus rides the task's SSE channel both ways: swipe here → the board pans
+// there; select there → this page switches. Session comes from the path,
+// like the board's /b/ page.
+function phonePage() {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Composer — phone</title><style>
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%;overflow:hidden}
+  body{display:flex;flex-direction:column;background:#0a0a0a;color:#f5f5f5;
+    font-family:'Geist',ui-sans-serif,-apple-system,sans-serif}
+  header{flex:none;display:flex;align-items:center;gap:8px;padding:10px 14px;
+    padding-top:calc(10px + env(safe-area-inset-top));border-bottom:1px solid #262626;font-size:13px}
+  header .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  header .ct{margin-left:auto;color:#737373;font-variant-numeric:tabular-nums;flex:none}
+  header i{width:7px;height:7px;border-radius:50%;background:#404040;flex:none}
+  iframe{flex:1;width:100%;border:0;background:#fff}
+  footer{flex:none;display:flex;align-items:stretch;gap:1px;background:#262626;border-top:1px solid #262626;
+    padding-bottom:env(safe-area-inset-bottom)}
+  footer button{flex:1;border:0;background:#141414;color:#f5f5f5;font-size:22px;padding:14px 0;font-family:inherit}
+  footer button:active{background:#1f1f1f}
+  footer button:disabled{color:#404040}
+  .empty{flex:1;display:grid;place-items:center;color:#737373;font-size:13px}
+</style></head><body>
+<header><i id="dot"></i><span class="nm" id="nm">connecting…</span><span class="ct" id="ct"></span></header>
+<iframe id="fr"></iframe>
+<footer><button id="prev" aria-label="Previous variant">‹</button><button id="next" aria-label="Next variant">›</button></footer>
+<script>
+var S = (location.pathname.match(/^\\/m\\/([A-Za-z0-9_-]+)/) || [])[1];
+var API = '/api/s/' + S;
+var TASK = new URLSearchParams(location.search).get('task');
+var SRC = 'ph-' + Math.random().toString(36).slice(2, 8);
+var list = [], cur = -1, pendingFocus = null;
+var fr = document.getElementById('fr'), nm = document.getElementById('nm'), ct = document.getElementById('ct');
+
+function show(i, push) {
+  if (!list.length) return;
+  i = ((i % list.length) + list.length) % list.length;
+  var v = list[i];
+  if (i !== cur) {
+    cur = i;
+    fr.src = '/v/' + S + '/' + TASK + '/' + v.id;
+  }
+  nm.textContent = v.name;
+  ct.textContent = (cur + 1) + ' / ' + list.length;
+  document.getElementById('dot').style.background = modelColor(v.model);
+  if (push) fetch(API + '/t/' + TASK + '/focus', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ variant: v.id, src: SRC })
+  }).catch(function () {});
+}
+function modelColor(m) {
+  if (/opus/.test(m)) return '#e0aa5a';
+  if (/sonnet/.test(m)) return '#7c9cff';
+  if (/haiku/.test(m)) return '#5ee08a';
+  if (/fable/.test(m)) return '#c07cff';
+  return '#8a9099';
+}
+function idx(id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return i; return -1; }
+function load() {
+  return fetch(API + '/t/' + TASK + '/variants').then(function (r) { return r.json(); }).then(function (l) {
+    var curId = cur >= 0 && list[cur] ? list[cur].id : null;
+    list = l;
+    if (!list.length) { nm.textContent = 'no variants yet'; ct.textContent = ''; cur = -1; return; }
+    var i = pendingFocus != null ? idx(pendingFocus) : -1;
+    pendingFocus = null;
+    if (i < 0 && curId) i = idx(curId);
+    show(i < 0 ? 0 : i, false);
+  });
+}
+document.getElementById('prev').addEventListener('click', function () { show(cur - 1, true); });
+document.getElementById('next').addEventListener('click', function () { show(cur + 1, true); });
+
+fetch(API + '/tasks').then(function (r) { return r.json(); }).then(function (info) {
+  if (!TASK && info.tasks && info.tasks.length) TASK = info.tasks[0].slug;
+  if (!TASK) { nm.textContent = 'no tasks yet'; return; }
+  document.title = 'Composer — ' + S;
+  load().then(function () {
+    var es = new EventSource(API + '/events?task=' + TASK);
+    es.onmessage = function (ev) {
+      var msg; try { msg = JSON.parse(ev.data); } catch (e) { return; }
+      if (msg.kind === 'focus' && msg.src !== SRC) {
+        var i = idx(msg.variant);
+        if (i >= 0) show(i, false); else pendingFocus = msg.variant;
+      } else if (msg.kind === 'change') load();
+    };
+  });
+}).catch(function () { nm.textContent = 'unknown session'; });
+<\/script></body></html>`;
+}
+
 /* ── http ─────────────────────────────────── */
 
 function json(res, code, data) {
@@ -233,6 +334,39 @@ const server = http.createServer(async (req, res) => {
     return res.end(hubPage());
   }
 
+  // phone remote for a session: one variant full-screen, focus synced with the board
+  if ((m = p.match(/^\/m\/([A-Za-z0-9_-]+)\/?$/))) {
+    if (!registry[m[1]]) { res.writeHead(404); return res.end("unknown session"); }
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+    return res.end(phonePage());
+  }
+
+  // a single variant as a standalone page — what the phone iframes
+  if ((m = p.match(/^\/v\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+\.html)$/))) {
+    const [, name, task, file] = m;
+    if (!registry[name]) { res.writeHead(404); return res.end("unknown session"); }
+    const fp = path.join(taskPath(name, task), "variants", file);
+    if (!fs.existsSync(fp)) { res.writeHead(404); return res.end("not found"); }
+    const html = fs.readFileSync(fp, "utf8");
+    const mm = html.match(/<!--\s*variant-meta\s+({[\s\S]*?})\s*-->/);
+    let meta = {};
+    if (mm) { try { meta = JSON.parse(mm[1]); } catch {} }
+    // url variants live on a dev server; a localhost url is rewritten to this
+    // machine's LAN address so the redirect still lands from another device
+    if (meta.url) {
+      let loc = meta.url;
+      try {
+        const u = new URL(loc, `http://localhost:${PORT}`);
+        if (u.hostname === "localhost" || u.hostname === "127.0.0.1") u.hostname = lanIP();
+        loc = u.href;
+      } catch {}
+      res.writeHead(302, { Location: loc });
+      return res.end();
+    }
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+    return res.end(html);
+  }
+
   // board UI for a session
   if ((m = p.match(/^\/b\/([A-Za-z0-9_-]+)\/?$/))) {
     if (!registry[m[1]]) { res.writeHead(404); return res.end("unknown session"); }
@@ -271,7 +405,12 @@ const server = http.createServer(async (req, res) => {
     const name = m[1], rest = m[2];
     if (!registry[name]) return json(res, 404, { error: "unknown session" });
 
-    if (rest === "tasks") return json(res, 200, { live: isLive(name), tasks: loadTasks(name) });
+    if (rest === "tasks")
+      return json(res, 200, {
+        live: isLive(name), tasks: loadTasks(name),
+        // where a phone on the same network reaches this session's remote
+        phone: `http://${lanIP()}:${PORT}/m/${name}`,
+      });
 
     if (rest === "events") {
       const task = url.searchParams.get("task") || "";
@@ -285,8 +424,27 @@ const server = http.createServer(async (req, res) => {
       const g = group(name, task);
       g.clients.add(res);
       res.write(`data: ${JSON.stringify({ kind: "status", live: isLive(name) })}\n\n`);
+      // a device joining mid-session starts on whatever is focused right now
+      if (g.focus) res.write(`data: ${JSON.stringify({ kind: "focus", ...g.focus })}\n\n`);
       req.on("close", () => g.clients.delete(res));
       return;
+    }
+
+    // shared focus: board and phone(s) tell each other which variant is looked
+    // at. Ephemeral — lives on the SSE group, never written to disk.
+    const fo = rest.match(/^t\/([A-Za-z0-9_-]+)\/focus$/);
+    if (fo && req.method === "POST") {
+      const dir = taskPath(name, fo[1]);
+      if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory())
+        return json(res, 404, { error: "unknown task" });
+      const b = await readBody(req);
+      if (typeof b?.variant !== "string" || !b.variant)
+        return json(res, 400, { error: "variant required" });
+      const g = group(name, fo[1]);
+      // src tags the sender so it can ignore its own echo
+      g.focus = { variant: b.variant.slice(0, 200), src: typeof b.src === "string" ? b.src.slice(0, 16) : "" };
+      send(g, { kind: "focus", ...g.focus });
+      return json(res, 200, { ok: true });
     }
 
     const im = rest.match(/^t\/([A-Za-z0-9_-]+)\/images(?:\/([a-f0-9]{12}\.[a-z0-9]+))?$/);

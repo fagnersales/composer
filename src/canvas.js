@@ -370,6 +370,7 @@ function select(id) {
   state.selected = id == null ? [] : [id];
   allNodes().forEach(updateNodeVisual);
   syncComposer();
+  if (id != null) focusBroadcast(id); // paired phones follow the selection
 }
 function toggleSelect(id) {
   var i = state.selected.indexOf(id);

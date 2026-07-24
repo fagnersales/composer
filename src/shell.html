@@ -26,6 +26,16 @@
     <button id="tbZoomIn" title="Zoom in ( + )">+</button>
     <button id="tbFit" title="Fit view ( 0 )">Fit</button>
     <button id="tbOrg" title="Tidy the whole board into a tree ( o )">Organize</button>
+    <button id="tbPhone" title="Open this task on your phone — navigation stays in sync">Phone</button>
+  </div>
+
+  <div id="qrOverlay" hidden>
+    <div class="qr-card">
+      <canvas id="qrCanvas" width="228" height="228"></canvas>
+      <div id="qrUrl" title="Tap to copy"></div>
+      <p>Scan from a phone on the same network. Swiping there moves this board; selecting here moves the phone.</p>
+      <button id="qrClose" type="button">Close</button>
+    </div>
   </div>
 
   <button id="themeToggle" title="Toggle light / dark" aria-label="Toggle light / dark">☾</button>
@@ -147,6 +157,7 @@
 <!-- @include sync.js -->
 <!-- @include inspect.js -->
 <!-- @include wiring.js -->
+<!-- @include remote.js -->
 <!-- @include input.js -->
 <!-- @include boot.js -->
   </script>
