@@ -454,6 +454,8 @@ const server = http.createServer(async (req, res) => {
     if (rest === "tasks")
       return json(res, 200, {
         live: isLive(name), tasks: loadTasks(name),
+        // absolute data dir — the board bakes it into the pick hand-off prompt
+        dir: registry[name].dir,
         // where a phone on the same network reaches this session's remote
         phone: `http://${lanIP()}:${PORT}/m/${name}`,
         boardTask: sessionTask.get(name) || null,

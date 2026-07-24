@@ -29,6 +29,44 @@ function ispPaintPick() {
   ispPickLabel.textContent = won ? 'Winner' : 'Pick this one';
   ispPickCheck.style.display = won ? 'block' : 'none';
   ispPick.classList.toggle('won', won);
+  // the winner's hand-off lives here: a fresh agent gets the prompt, not the fleet
+  ispCopyPrompt.style.display = won ? '' : 'none';
+}
+/* the pick hand-off: a prompt a FRESH agent session can start from — it names
+   where the winning mockup lives and how to see it, so no bloated fleet
+   context is ever needed to implement the design */
+function buildPickPrompt(n) {
+  var t = null;
+  for (var i = 0; i < TASKS.length; i++) if (TASKS[i].slug === TASK) t = TASKS[i];
+  var where = n.url
+    ? 'The chosen design runs live at ' + n.url + ' (a route on this project\'s dev server).'
+    : 'The chosen design is a self-contained HTML mockup at:\n' +
+      (DIR ? DIR + '/' + TASK + '/variants/' + n.id : '.composer/' + TASK + '/variants/' + n.id);
+  return 'Implement a UI design that was chosen on a Composer board into this project\'s real codebase.\n\n' +
+    'Task: "' + (t ? t.title : TASK) + '"\n' +
+    'Winning variant: "' + n.name + '"' + (n.description ? ' — ' + n.description : '') + '\n\n' +
+    where + '\n\n' +
+    'Before writing any code, open it in a browser and take screenshots (a desktop width and a narrow one) so you know exactly what you are building — treat its layout, spacing, typography and interactions as the spec. The mockup is backend-free: wire it to the project\'s real data, routes and components, following the codebase\'s existing conventions rather than pasting the mockup wholesale.\n\n' +
+    'The sibling files in that same variants/ folder are the other explored directions — useful context for what was rejected, but only this one was picked.';
+}
+function copyPickPrompt() {
+  var n = byId(winnerNodeId());
+  if (!n) return;
+  var text = buildPickPrompt(n);
+  trace('pick:copy-prompt', { id: n.id });
+  var done = function () { toast('Prompt copied — paste it into a fresh agent session'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+  } else { fallbackCopy(text); done(); }
+}
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
 }
 /* the edge zones walk the same sibling list as ←/→; the ends are walls */
 function ispPaintNav() {
@@ -159,8 +197,70 @@ function togglePause() {
   insPausedState = !insPausedState;
   ispRenderPause();
 }
+/* screenshot the inspected variant to the clipboard. The iframe is sandboxed
+   (no allow-same-origin), so its pixels are unreachable from here — instead we
+   tab-capture (preferCurrentTab skips the picker's surface hunt), crop the
+   frame's rect out of one video frame, and hand the PNG to the clipboard.
+   Chromium-only; the catch covers both "denied" and "unsupported". */
+var shotBusy = false;
+function captureVariant() {
+  if (shotBusy || state.inspectId == null || !inspIframe) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    toast('Screenshots need a Chromium browser'); return;
+  }
+  trace('inspect:screenshot', { id: state.inspectId });
+  shotBusy = true;
+  var stream, video = document.createElement('video');
+  navigator.mediaDevices.getDisplayMedia({
+    video: true, audio: false,
+    preferCurrentTab: true, selfBrowserSurface: 'include'
+  }).then(function (s) {
+    stream = s;
+    video.srcObject = s;
+    video.muted = true;
+    inspect.classList.add('shooting'); // chrome, chevrons and hints leave the shot
+    return video.play();
+  }).then(function () {
+    // let the share infobar's reflow and the 'shooting' fade both settle
+    return new Promise(function (res) { setTimeout(res, 400); });
+  }).then(function () {
+    var r = ispFrame.getBoundingClientRect();
+    var sx = video.videoWidth / window.innerWidth;
+    var sy = video.videoHeight / window.innerHeight;
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(r.width * sx));
+    c.height = Math.max(1, Math.round(r.height * sy));
+    c.getContext('2d').drawImage(video, r.left * sx, r.top * sy, r.width * sx, r.height * sy, 0, 0, c.width, c.height);
+    return new Promise(function (res) { c.toBlob(res, 'image/png'); });
+  }).then(function (blob) {
+    endShot(stream);
+    if (!blob) throw new Error('no frame');
+    return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+      toast('Screenshot copied to clipboard');
+    }, function () {
+      // clipboard refused (focus/permission) — a download still delivers it
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = SESSION + '-' + (state.inspectId || 'variant').replace(/\.html$/, '') + '.png';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      toast('Clipboard refused — downloaded the screenshot instead');
+    });
+  }).catch(function (e) {
+    endShot(stream);
+    trace('inspect:screenshot-fail', { msg: String(e).slice(0, 120) });
+    if (e && e.name === 'NotAllowedError') toast('Screenshot cancelled');
+    else toast('Screenshot failed — ' + (e && e.message ? e.message : e));
+  });
+}
+function endShot(stream) {
+  if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+  inspect.classList.remove('shooting');
+  shotBusy = false;
+}
 function setWinner(id) {
-  if (!fleetLive) { toast('Fleet offline — run /composer in the project to reconnect'); return; }
+  // no fleet needed: a pick only records the winner (the server appends it
+  // regardless of heartbeat), so it stays unlocked even when the fleet is offline
   var n = byId(id);
   if (!n) return;
   var file = n.id;
@@ -168,6 +268,9 @@ function setWinner(id) {
   allNodes().forEach(updateNodeVisual);
   renderMinimap();
   if (state.inspectId) ispPaintPick();
-  sendRequest('Pick "' + n.name + '" — implement this design.', [file], null, 'pick').then(refreshRequests);
+  // the pick only records the winner — implementation is handed to a fresh
+  // agent via the Copy prompt button, not done by the fleet
+  sendRequest('Pick "' + n.name + '" — the winner.', [file], null, 'pick').then(refreshRequests);
+  toast('Winner picked — Copy prompt hands it to a fresh agent');
 }
 

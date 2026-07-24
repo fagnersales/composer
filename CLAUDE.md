@@ -54,12 +54,13 @@ the Input.
    into the composer, stored under the task's `images/`), and may list
    several parents in `variants` (multi-select = combine); tweak requests
    ("one small change") are served inline by the fleet as a new child
-   variant of `variants[0]`, no subagent; pick requests mean "implement this design in the
-   real codebase", not a file move.
+   variant of `variants[0]`, no subagent; pick requests only record the winner — the board's
+   "Copy prompt" button hands implementation to a fresh agent session
+   (the fleet never implements a pick).
 5. The resident fleet agent heartbeats
    (`POST /api/sessions/<name>/heartbeat`, 90s window) and serves requests.
-   No heartbeat → board shows "fleet offline" and locks iterate/pick
-   (cancel stays allowed). Server pushes SSE on file changes + liveness
+   No heartbeat → board shows "fleet offline" and locks iterate/tweak
+   (cancel and pick stay allowed — they only record state). Server pushes SSE on file changes + liveness
    flips; the board hot-updates.
 
 Full protocol details: README.md.
@@ -78,4 +79,4 @@ Full protocol details: README.md.
   "clean it up".
 - Never rewrite a `requests.jsonl` history; only append.
 - Board actions must stay locked while the session has no live heartbeat
-  (except cancel — retracting work is always safe).
+  (except cancel and pick — both only record state, no agent work).

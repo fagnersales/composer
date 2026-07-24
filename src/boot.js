@@ -1,6 +1,7 @@
 /* ---------- fleet liveness ---------- */
-/* iterate/pick only work while a fleet agent is heartbeating; without one
-   the requests would sit in the file forever, so the board locks them */
+/* iterate/tweak only work while a fleet agent is heartbeating; without one
+   the requests would sit in the file forever, so the board locks them.
+   Pick and cancel stay unlocked — both only record state on the server. */
 var liveEl = document.getElementById('live');
 function setLive(v) {
   if (v !== fleetLive) trace('fleet', { live: v });
@@ -40,6 +41,7 @@ fetch(API + '/tasks').then(function (r) {
   });
   sel.addEventListener('change', function () { location.href = '/b/' + SESSION + '?task=' + sel.value; });
   setLive(!!info.live);
+  DIR = info.dir || '';
   PHONE_BASE = info.phone || ''; // where a phone on the LAN reaches the remote
   if (!TASK) return;
   document.title = 'Composer — ' + SESSION;

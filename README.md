@@ -26,11 +26,12 @@ selects multiple variants and iterates children combining all of them).
 The composer's Iterate|Tweak toggle switches to **tweak**: one small
 change to the selected node, delivered as a single child card (with a
 lineage edge), built inline by the fleet. "Cancel" on a ghost
-node cancels its iterate request, "Pick this one" asks the fleet to implement
-that design. Task switcher in the HUD flips between the project's past and
-current tasks. Iterate/pick are **locked while no fleet agent is
+node cancels its iterate request, "Pick this one" crowns the winner and
+reveals a "Copy prompt" hand-off for a fresh agent to implement it. Task
+switcher in the HUD flips between the project's past and
+current tasks. Iterate/tweak are **locked while no fleet agent is
 heartbeating** ("fleet offline") so requests can't pile up unheard;
-cancel always works. Keyboard: +/- zoom, 0 fit, o organize, Esc close/deselect.
+cancel and pick always work — they only record state. Keyboard: +/- zoom, 0 fit, o organize, Esc close/deselect.
 
 ## Run
 
@@ -174,9 +175,13 @@ guidance for the requested work.
   as `description`. The landed file is a normal child card with a
   lineage edge — same as an iterate of one.
 
-- `pick` — `variants[0]` is the chosen design. This is **not** a file
-  operation: it tells the resident agent to *implement that design in the
-  project's real code*. The newest non-cancelled pick marks the crown.
+- `pick` — `variants[0]` is the chosen design. The newest non-cancelled
+  pick marks the crown. A pick only *records* the winner: implementation
+  is handed off via the board's **Copy prompt** button, which puts a
+  self-contained brief on the clipboard (the winning variant's absolute
+  file path or live URL, the task goal, and instructions to screenshot
+  the mockup first) for the user to paste into a fresh agent session —
+  the resident fleet agent does **not** implement it.
 
 Cancellation: the board's ghost-node "Cancel" button hits the cancel
 endpoint, which appends
@@ -194,8 +199,9 @@ Fleet-agent loop (the skill session stays resident):
 4. For `iterate`: read `variants` as the parent set (usually one; several
    means combine them), build `count` children into `variants/` (meta
    `parent` set to `variants[0]`, numbering continues from the highest
-   existing). For `pick`: implement the chosen variant's design in the
-   project's real codebase.
+   existing). For `pick`: nothing to build — acknowledge it (the winner
+   is server-side state; the user hands implementation to a fresh agent
+   via the board's Copy prompt button).
 5. Append `{"kind":"status","id":…,"status":"done","note":"…"}` — unless
    the build ran through `spawn.sh`, which appends `done`/`failed` itself.
 

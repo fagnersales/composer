@@ -596,9 +596,11 @@ document.getElementById('ispIterate').addEventListener('click', function () {
   if (composer.classList.contains('in-inspect')) closeInspectIterate(); else openInspectIterate();
 });
 document.getElementById('ispFull').addEventListener('click', toggleFullscreen);
+document.getElementById('ispShot').addEventListener('click', captureVariant);
 ispPause.addEventListener('click', togglePause);
 ispRestart.addEventListener('click', function () { var n = byId(state.inspectId); if (n) buildInspFrame(n); });
 ispPick.addEventListener('click', function () { if (state.inspectId != null) setWinner(state.inspectId); });
+ispCopyPrompt.addEventListener('click', copyPickPrompt);
 ispClose.addEventListener('click', function () {
   if (composer.classList.contains('in-inspect')) closeInspectIterate(); else closeInspect();
 });

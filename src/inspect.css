@@ -141,6 +141,15 @@
   .insp-pick:active { transform: scale(.97); }
   .insp-pick.won { background: var(--bg-muted); color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--border-strong); }
   .insp-pick svg { width: 13px; height: 13px; }
+  /* the winner's hand-off button — sits beside the Winner chip, accent-filled
+     because it is now the primary action */
+  .insp-copy { margin-left: 8px; }
+
+  /* mid-screenshot the frame must stand alone — every overlay ducks out */
+  #inspect.shooting .insp-bar,
+  #inspect.shooting .insp-hints,
+  #inspect.shooting .insp-nav,
+  #inspect.shooting ~ #toast { opacity: 0 !important; transition: none !important; }
 
   /* aspect popover, anchored to its mark */
   .insp-anchor { position: relative; }
