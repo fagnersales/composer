@@ -122,6 +122,22 @@ function appendRequest(name, task, entry) {
   fs.appendFileSync(requestsFile(name, task), JSON.stringify(entry) + "\n");
 }
 
+/* ── trace ────────────────────────────────── */
+// Debug timeline for a task: the board posts batches of UI events (clicks,
+// sends, landings, errors) and they land here as append-only JSONL, one file
+// per task, so a session can be replayed start to finish. Never rewritten.
+const TRACE_MAX_BATCH = 500;
+function traceFile(name, task) { return path.join(taskPath(name, task), "trace.jsonl"); }
+function appendTrace(name, task, events) {
+  const recv = new Date().toISOString();
+  const lines = events
+    .slice(0, TRACE_MAX_BATCH)
+    .filter((e) => e && typeof e === "object")
+    .map((e) => JSON.stringify({ ...e, recv }) + "\n")
+    .join("");
+  if (lines) fs.appendFileSync(traceFile(name, task), lines);
+}
+
 /* ── live updates (SSE) ───────────────────── */
 // One watcher group per (session, task); a recursive watch on the task dir
 // covers variants/, requests.jsonl and task.json in one go.
@@ -132,7 +148,9 @@ function group(name, task) {
   if (!g) {
     g = { name, clients: new Set(), watcher: null, debounce: null };
     try {
-      g.watcher = fs.watch(taskPath(name, task), { recursive: true }, () => {
+      g.watcher = fs.watch(taskPath(name, task), { recursive: true }, (ev, fn) => {
+        // trace writes are the board talking to itself — never a board change
+        if (fn && /(^|[\\/])trace\.jsonl$/.test(fn)) return;
         clearTimeout(g.debounce);
         g.debounce = setTimeout(() => send(g, { kind: "change" }), 150);
       });
@@ -296,6 +314,25 @@ const server = http.createServer(async (req, res) => {
         // content-addressed names never change contents — cache forever
         res.writeHead(200, { "Content-Type": type, "Cache-Control": "max-age=31536000, immutable" });
         return res.end(fs.readFileSync(fp));
+      }
+    }
+
+    // debug trace: POST appends a batch of board events, GET reads the file back
+    const tr = rest.match(/^t\/([A-Za-z0-9_-]+)\/trace$/);
+    if (tr) {
+      const dir = taskPath(name, tr[1]);
+      if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory())
+        return json(res, 404, { error: "unknown task" });
+      if (req.method === "POST") {
+        const b = await readBody(req);
+        if (!Array.isArray(b?.events)) return json(res, 400, { error: "events array required" });
+        appendTrace(name, tr[1], b.events);
+        return json(res, 200, { ok: true, count: Math.min(b.events.length, TRACE_MAX_BATCH) });
+      }
+      if (req.method === "GET") {
+        const fp = traceFile(name, tr[1]);
+        res.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache" });
+        return res.end(fs.existsSync(fp) ? fs.readFileSync(fp) : "");
       }
     }
 
