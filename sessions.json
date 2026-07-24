@@ -10,5 +10,8 @@
   },
   "roblox-auto-delivery": {
     "dir": "/Users/fagnersales/prototype/roblox-auto-delivery/.composer"
+  },
+  "spokpay-main": {
+    "dir": "/Users/fagnersales/work/spokpay-main/.composer"
   }
 }

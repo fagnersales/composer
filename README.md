@@ -99,7 +99,28 @@ POST /api/s/<name>/t/<task>/requests/<id>/cancel
 POST /api/s/<name>/t/<task>/images          raw image body (Content-Type: image/png|jpeg|gif|webp, 10MB max) → {file:"images/<hash>.<ext>"}
 GET  /api/s/<name>/t/<task>/images/<file>   serve a stored reference image
 GET  /api/s/<name>/events?task=<slug>       SSE: {"kind":"change"} | {"kind":"status","live":bool}
+POST /api/s/<name>/t/<task>/trace           {events:[…]} — board debug events, appended to the task's trace.jsonl (max 500/batch)
+GET  /api/s/<name>/t/<task>/trace           the raw trace.jsonl (NDJSON)
 ```
+
+## Debug trace (`trace.jsonl`)
+
+Append-only JSONL per task, written by the board so a session can be
+reconstructed start to finish when something goes wrong (a screenshot can't
+say why). One line per UI event; each carries `pg` (a random id per board
+load), `seq` (order within that load), `t` (client time), `ev`, and `recv`
+(server time the batch arrived). The file watcher ignores it, so trace
+writes never trigger SSE `change` events.
+
+Event kinds: `boot` (session/task/viewport), `click`/`dblclick` (element
+chain, card id, screen + world coords), `key`, `select`, `input:mode`,
+`input:model`, `input:count`, `request:send`/`request:ack`/`request:fail`,
+`request:cancel`, `variant:landed` (id, parent, coords, how it was placed),
+`variant:removed`, `ghost:opened`/`ghost:closed`, `node:moved` (from → to),
+`layout` (every card's position, emitted after boot/drag/organize/landing),
+`camera` (where a pan/zoom came to rest), `organize`, `fit`, `winner`,
+`fleet` (liveness flips), `inspect:*`, `image:*`, `toast`, `note`,
+`sse:change`/`sse:error`, `error` (uncaught JS errors), `pagehide`.
 
 ## Agent protocol (`requests.jsonl`)
 
@@ -114,6 +135,12 @@ cancel can't resurrect it). Never rewrite the file, only append.
 {"kind":"status","id":"a1b2c3d4","status":"building"}
 {"kind":"status","id":"a1b2c3d4","status":"done","note":"→ 06-x.html, 07-y.html, 08-z.html"}
 ```
+
+Besides `building`/`done`/`cancelled` there is `failed`: appended by the
+build wrapper (see `spawn.sh` below) when a builder process exits nonzero
+or times out. The board closes the request's ghost slots and toasts the
+note. Unlike `cancelled` it is **not** terminal — a later `building` line
+(a retry) reopens the request.
 
 Request `type`s the board sends:
 
@@ -163,6 +190,30 @@ Fleet-agent loop (the skill session stays resident):
 4. For `iterate`: read `variants` as the parent set (usually one; several
    means combine them), build `count` children into `variants/` (meta
    `parent` set to `variants[0]`, numbering continues from the highest
-   existing). Re-check for `cancelled` between files. For `pick`:
-   implement the chosen variant's design in the project's real codebase.
-5. Append `{"kind":"status","id":…,"status":"done","note":"…"}`.
+   existing). For `pick`: implement the chosen variant's design in the
+   project's real codebase.
+5. Append `{"kind":"status","id":…,"status":"done","note":"…"}` — unless
+   the build ran through `spawn.sh`, which appends `done`/`failed` itself.
+
+### `spawn.sh` — detached headless builders
+
+`spawn.sh <task-dir> <request-id|-> <model> <prompt-file>...` fires one
+headless `claude -p` per prompt file — all concurrently, each writing one
+variant file — then appends the request's terminal status line itself:
+`done` if every builder exited 0, `failed` (with the failing slots and log
+dir in `note`) otherwise. Run it detached (`nohup … &`) and the fleet
+agent hears nothing on success: the files land, the hub's watcher pushes
+SSE, the board updates. The fleet agent only reacts when its poll of
+`requests.jsonl` shows a `failed` line.
+
+- Model aliases `sonnet`/`opus`/`fable` (what iterate requests carry) map
+  to full model ids; anything else passes through.
+- Request id `-` means "no request line" (the initial fan-out): no status
+  is appended; failures surface via the script's exit code instead.
+- Logs, per-slot exit codes and builder PIDs go to
+  `<data-dir>/.builds/<task>/<id>/` — outside the task dir so log writes
+  never fire the task watcher. To cancel a running build, kill the PIDs
+  in that dir's `pids` file; the script then appends nothing (`cancelled`
+  is terminal at read time anyway).
+- Tunables: `COMPOSER_BUILD_TIMEOUT` (seconds per builder, default 900)
+  and `COMPOSER_ALLOWED_TOOLS` (default `Read,Glob,Grep,Write,Edit`).
