@@ -1,0 +1,310 @@
+  /* composer */
+  /* Two states, one motion: a bare 292px chip at rest, a 412px textarea while
+     composing. Everything explanatory (keycap hint, note row) belongs to the
+     composing state or to a confirmation — the resting chip is only what you
+     can operate, so its bottom edge sits right under the buttons. The resting
+     width is measured, not chosen: the counter pill + ladder + Iterate button
+     lay out at their natural size, and the note line reads unclipped. */
+  #composer {
+    position: fixed; z-index: 25; width: 292px; background: var(--bg-surface); border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg); padding: 12px; box-shadow: var(--shadow-pop); font-size: 12px;
+    transition: width var(--dur-snap) var(--ease-out), box-shadow var(--dur-snap) var(--ease-out),
+                border-color var(--dur-snap) var(--ease-out);
+  }
+  #composer.composing { width: 412px; border-color: var(--border-strong); }
+
+  /* the panel opens straight onto the mode toggle — the selection ring already
+     says which node this is about, so there is no title line */
+  #cmpMode { display: flex; gap: 2px; padding: 3px; background: var(--bg-muted); border-radius: var(--radius-full); margin-bottom: 9px; }
+  #cmpMode button {
+    flex: 1; height: 26px; border-radius: var(--radius-full); border: none; background: none;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    color: var(--text-secondary); cursor: pointer; font-size: 12px; font-family: var(--font-sans); font-weight: var(--weight-medium);
+    transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  }
+  /* the glyph carries the idea (branch out / nudge one setting) at the weight of
+     a label, so it stays legible against the pill and never outshouts the word */
+  #cmpMode button svg { width: 12px; height: 12px; flex: none; opacity: .75; transition: opacity var(--dur-fast) var(--ease-out); }
+  #cmpMode button.on svg, #cmpMode button:hover:not(:disabled) svg { opacity: 1; }
+  #cmpMode button:hover:not(:disabled) { color: var(--text-primary); }
+  #cmpMode button.on { background: var(--pill-active); color: var(--text-primary); box-shadow: var(--shadow-sm); font-weight: var(--weight-semibold); }
+  #cmpMode button:disabled { opacity: .35; cursor: default; }
+  /* Reject rides the mode track as a full equal third segment — same size and
+     type as Iterate/Tweak, but its accent is soft red; once the selected card
+     is rejected it stays red-tinted and reads "Rescue" */
+  #cmpMode #cmpReject { display: none; }
+  #composer.show-reject #cmpMode #cmpReject { display: flex; }
+  #cmpMode #cmpReject:hover:not(:disabled) { color: #e5484d; background: rgba(229,72,77,.10); }
+  #cmpMode #cmpReject:hover:not(:disabled) svg { opacity: 1; }
+  #cmpMode #cmpReject.is-rejected { color: #e5484d; background: rgba(229,72,77,.15); box-shadow: var(--shadow-sm); font-weight: var(--weight-semibold); }
+  #cmpMode #cmpReject.is-rejected svg { opacity: 1; }
+  #cmpMode #cmpReject.is-rejected:hover:not(:disabled) { background: rgba(229,72,77,.22); }
+  #cmpMode #cmpReject .undo { display: none; }
+  #cmpMode #cmpReject.is-rejected .ban { display: none; }
+  #cmpMode #cmpReject.is-rejected .undo { display: inline; }
+  /* Reject/Rescue share the wider word's width so the flip never shifts layout */
+  #cmpMode #cmpReject .lbl { min-width: 43px; text-align: left; }
+
+  /* Reference images (pasted / dropped) ride above the field as thumbnails.
+     The row reserves no space until something is attached. */
+  .cmp-imgs { display: none; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  #composer.has-imgs .cmp-imgs { display: flex; }
+  .cmp-img {
+    position: relative; width: 44px; height: 44px; flex: none;
+    border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+    overflow: hidden; background: var(--bg-muted);
+  }
+  .cmp-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cmp-img.pending img { opacity: .35; }
+  .cmp-img .up {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  }
+  .cmp-img.pending .up { display: flex; }
+  .cmp-img .up i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+  .cmp-img .rm {
+    position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; padding: 0;
+    border: 0; border-radius: var(--radius-full); background: var(--bg-inverse); color: var(--text-inverse);
+    font-size: 9px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
+  }
+  .cmp-img:hover .rm { opacity: 1; }
+  #cmpField.dropping { border-color: var(--gray-400); box-shadow: 0 0 0 3px var(--input-glow); }
+
+  /* The wrapper owns the height transition and clips; the textarea inside snaps
+     straight to its final box with no transition of its own. Animating the
+     textarea itself makes the browser chase the caret and re-clamp scrollTop on
+     every frame of the ease, which reads as a flicker on each new line. */
+  #cmpField {
+    position: relative; height: 32px; background: var(--bg-page); overflow: hidden;
+    border: 1px solid var(--border-default); border-radius: var(--radius-md);
+    transition: height var(--dur-snap) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out), background var(--dur-base) var(--ease-out);
+  }
+  #composer.composing #cmpField { height: var(--cmp-fh, 108px); background: var(--bg-subtle); }
+  /* growth past the snap is deliberately quieter — the snap stays the moment */
+  #composer.composing.settled #cmpField { transition: height 170ms var(--ease-out), border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+  #cmpField:hover { border-color: var(--border-strong); }
+  #cmpField.hot { border-color: var(--gray-400); box-shadow: 0 0 0 3px var(--input-glow); }
+  #cmpInput, #cmpMirror {
+    font-size: 12px; font-family: var(--font-sans); line-height: 17px; padding: 7px 10px;
+    white-space: pre; overflow-wrap: normal; word-break: normal;
+  }
+  /* the hint floats over the bottom-right corner — reserve a gutter under the
+     text so the last line never lands beneath it */
+  #composer.composing #cmpInput, #composer.composing #cmpMirror {
+    white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word;
+    padding-bottom: 25px;
+  }
+  #cmpInput {
+    position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+    margin: 0; border: 0; outline: none; background: transparent; resize: none; overflow: hidden;
+    color: var(--text-primary); display: block;
+  }
+  #composer.composing #cmpInput { overflow-y: auto; }
+  #cmpInput::placeholder { color: var(--text-tertiary); }
+  /* measured off-screen so the live field's height is only ever written once */
+  #cmpMirror { position: absolute; left: 0; right: 0; top: 0; height: auto; visibility: hidden; pointer-events: none; }
+
+  /* drawn, never a glyph — ⇧ / ↵ can't be trusted to render without a webfont */
+  kbd.kb {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 15px; min-width: 15px; padding: 0 3px; box-sizing: border-box;
+    background: var(--bg-muted); border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm); color: var(--text-tertiary);
+    vertical-align: middle; line-height: 0; font: inherit;
+  }
+  kbd.kb + kbd.kb { margin-left: 3px; }
+  kbd.kb > svg { display: block; width: 11px; height: 11px; flex: none; }
+  kbd.kb.txt { padding: 0 4px; font-family: var(--font-sans); font-size: 9px; line-height: 1; font-weight: var(--weight-medium); color: var(--text-secondary); }
+  .cmp-hint {
+    position: absolute; right: 0; bottom: 0; z-index: 2;
+    padding: 5px 9px 6px 20px;
+    /* scrim, so lines scrolling past the bottom edge don't read through it */
+    background: linear-gradient(to right, transparent, var(--bg-subtle) 18px);
+    display: inline-flex; align-items: center; font-size: 10px; line-height: 15px;
+    color: var(--text-tertiary); pointer-events: none;
+    opacity: 0; transform: translateY(3px);
+    /* leaving is quick and undelayed, so it's gone before the field collapses
+       back onto one line and can't smear over the placeholder */
+    transition: opacity 110ms var(--ease-out), transform 110ms var(--ease-out);
+  }
+  #composer.composing .cmp-hint { opacity: 1; transform: none; transition: opacity 180ms var(--ease-out) 90ms, transform 180ms var(--ease-out) 90ms; }
+  .cmp-hint .lbl { margin-left: 6px; }
+
+  /* ---------- the model dial ----------
+     Which model builds the variants. It is not a control-row button: it's a
+     word set into the writing surface, with that model's own small mark beside
+     it. The wrapper exists only so the popover can hang off the trigger — the
+     field itself clips (it has to, for the scrolling textarea), so the card
+     could never escape from inside it. */
+  #cmpFieldWrap { position: relative; }
+  .dialhost { position: absolute; left: 0; bottom: 0; z-index: 3; }
+  /* at rest the field is one line, so the dial rides its right edge instead —
+     the model stays readable without opening the panel */
+  #composer:not(.composing) .dialhost { left: auto; right: 0; top: 0; bottom: 0; }
+  #cmpDial {
+    position: relative; z-index: 3;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 10px 6px 9px; border: 0; border-radius: 0 var(--radius-sm) 0 var(--radius-md);
+    background: linear-gradient(to left, transparent, var(--bg-subtle) 16px);
+    font-family: var(--font-sans); font-size: 10px; line-height: 15px; letter-spacing: .01em;
+    color: var(--text-tertiary); cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out), opacity 110ms var(--ease-out), transform 110ms var(--ease-out);
+  }
+  #composer:not(.composing) #cmpDial {
+    height: 100%; padding: 0 10px 0 18px; border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: linear-gradient(to right, transparent, var(--bg-page) 16px);
+  }
+  #cmpDial:hover, #cmpDial:focus-visible { color: var(--text-secondary); outline: none; }
+  /* while the card is up the trigger stays put and reads as pressed */
+  #composer.dialopen #cmpDial { background-image: none; background-color: var(--bg-muted); border-radius: var(--radius-sm); }
+  #cmpDial .nm { font-weight: var(--weight-medium); color: var(--text-secondary); transition: color var(--dur-fast) var(--ease-out); }
+  #cmpDial:hover .nm, #composer.dialopen #cmpDial .nm { color: var(--text-primary); }
+  /* the emblem is an identity mark, not a magnitude read-out: three figures of
+     deliberately equal ink, so the glyph says *which* model, never *how much* */
+  .emblem { display: inline-flex; width: 12px; height: 12px; flex: none; }
+  .emblem svg {
+    width: 12px; height: 12px; display: block; overflow: visible; color: var(--text-tertiary);
+    transition: color var(--dur-fast) var(--ease-out), transform 220ms var(--ease-out);
+  }
+  #cmpDial:hover .emblem svg, #composer.dialopen #cmpDial .emblem svg { color: var(--text-primary); }
+  .emblem svg.swap { animation: emb 260ms var(--ease-out); }
+  @keyframes emb { from { opacity: 0; transform: scale(.72) } to { opacity: 1; transform: none } }
+
+  /* the card — an elevated surface rising just above the trigger, left-aligned
+     to it, 6px of air between. Nothing in the panel moves. */
+  #cmpPop {
+    position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 12; width: 186px;
+    background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-pop); padding: 4px; display: none; transform-origin: bottom left;
+  }
+  #composer.dialopen #cmpPop { display: block; animation: cmpPop 200ms var(--ease-out); }
+  @keyframes cmpPop { from { opacity: 0; transform: translateY(6px) scale(.94) } to { opacity: 1; transform: none } }
+  #cmpPop button {
+    display: flex; width: 100%; align-items: center; gap: 8px; padding: 6px 8px; border: 0; background: none;
+    border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-sans); font-size: 12px;
+    color: var(--text-secondary); transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  }
+  #cmpPop button:hover { background: var(--bg-muted); color: var(--text-primary); }
+  #cmpPop button.on { color: var(--text-primary); font-weight: var(--weight-semibold); }
+  #cmpPop button .emblem svg { color: var(--text-tertiary); }
+  #cmpPop button:hover .emblem svg, #cmpPop button.on .emblem svg { color: var(--text-primary); }
+  #cmpPop button .sub { margin-left: auto; font-size: 10px; color: var(--text-tertiary); font-weight: 400; }
+  #cmpPop button .tick { width: 10px; height: 10px; flex: none; opacity: 0; color: var(--text-primary); }
+  #cmpPop button.on .tick { opacity: 1; }
+  #cmpPop button .tick svg { width: 10px; height: 10px; display: block; }
+  #cmpInline {
+    flex: 1 1 auto; min-width: 0; color: var(--text-secondary); line-height: 17px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    opacity: 0; transform: translateX(-6px);
+    transition: opacity 180ms var(--ease-out), transform 220ms var(--ease-out);
+  }
+  #composer.composing #cmpInline { opacity: 1; transform: none; transition-delay: 110ms; }
+  .cmp-spacer { flex: 1 1 auto; }
+  #composer.composing .cmp-spacer { display: none; }
+  .cmp-row { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+  #cmpCount { position: relative; display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--bg-muted); border-radius: var(--radius-full); }
+  #cmpCount button { position: relative; width: 26px; height: 26px; border-radius: var(--radius-full); border: none; background: none; color: var(--text-secondary); cursor: pointer; font-size: 14px; line-height: 1; font-family: var(--font-sans); font-weight: var(--weight-medium); transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform 90ms var(--ease-out); -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+  #cmpCount button:hover:not(.off) { background: var(--pill-active); color: var(--text-primary); }
+  #cmpCount button:active:not(.off) { transform: scale(.9); }
+  /* `.off`, not [disabled]: at the wall the button still says something (that it
+     IS the wall), so it stays a real control and only *looks* spent. */
+  #cmpCount button.off { opacity: .35; cursor: default; }
+  /* the numeral: a real number input kept for typing/focus/a11y, with the
+     odometer drum painted over it */
+  #cmpNWrap { position: relative; width: 34px; height: 26px; flex: none; }
+  #cmpN {
+    position: absolute; inset: 0; z-index: 2;
+    width: 34px; height: 26px; padding: 0; border: none; background: none; text-align: center; outline: none;
+    color: transparent; caret-color: transparent; font-size: 12px; font-family: var(--font-sans); font-weight: var(--weight-semibold);
+    -moz-appearance: textfield; border-radius: var(--radius-full);
+  }
+  #cmpN::-webkit-outer-spin-button, #cmpN::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  #cmpN::selection { background: transparent; }
+  #cmpN:focus { background: var(--pill-active); border-radius: var(--radius-full); box-shadow: var(--shadow-sm); }
+  #odo {
+    position: absolute; inset: 0; z-index: 3; pointer-events: none; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-family: var(--font-sans); font-weight: var(--weight-semibold);
+    font-variant-numeric: tabular-nums; color: var(--text-primary);
+  }
+  .slot { position: relative; width: 8px; height: 16px; overflow: hidden; transition: width 240ms var(--ease-out); }
+  .slot.empty { width: 0; }
+  .slot .d { position: absolute; left: 0; top: 0; width: 8px; height: 16px; display: flex; align-items: center; justify-content: center; line-height: 16px; will-change: transform, opacity; }
+  /* wheel shading — the top and bottom of the drum fall away while it rolls */
+  #odo::before, #odo::after { content: ''; position: absolute; left: 0; right: 0; height: 5px; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 200ms var(--ease-out); }
+  #odo::before { top: 5px; background: linear-gradient(var(--bg-muted), transparent); }
+  #odo::after { bottom: 5px; background: linear-gradient(transparent, var(--bg-muted)); }
+  #cmpCount.rolling #odo::before, #cmpCount.rolling #odo::after { opacity: 1; }
+  #cmpCount.rolling #cmpN:focus + #odo::before { background: linear-gradient(var(--pill-active), transparent); }
+  /* rubber band at the wall */
+  @keyframes wallR { 0%{transform:translateX(0)} 22%{transform:translateX(4px)} 48%{transform:translateX(-2px)} 72%{transform:translateX(1px)} 100%{transform:translateX(0)} }
+  @keyframes wallL { 0%{transform:translateX(0)} 22%{transform:translateX(-4px)} 48%{transform:translateX(2px)} 72%{transform:translateX(-1px)} 100%{transform:translateX(0)} }
+  #cmpCount.wall-hi { animation: wallR 300ms cubic-bezier(.3,.9,.3,1); }
+  #cmpCount.wall-lo { animation: wallL 300ms cubic-bezier(.3,.9,.3,1); }
+  /* the ladder — 12 rungs beside the pill, rung N owning luminance stop N, so
+     the count is a standing read-out and not just a digit. `--k` is how far each
+     *filled* rung is pushed from the unfilled grey toward its own stop, so
+     raising the count re-grades the whole stack at once. With no hue to lean on,
+     every achromatic cue is load-bearing: a steeper height ramp, a bar that
+     thickens as it climbs, a hard fill/empty opacity cliff, and a bloom only the
+     top third of the ladder can earn. */
+  /* Its own object, outside the counter pill: the pill is what you operate, the
+     ladder is what it reads out — so it sits on the panel, unbacked. */
+  #ladder { display: flex; align-items: flex-end; gap: 3px; height: 16px; flex: none; margin: 0; opacity: .7; pointer-events: none; transition: opacity 220ms var(--ease-out); }
+  #ladder.lit { opacity: 1; }
+  #ladder i {
+    display: block; border-radius: 1px;
+    --k: 0; --g: 0; --c: var(--rung-off);
+    background: color-mix(in oklab, var(--c) calc(var(--k) * 100%), var(--rung-off));
+    box-shadow: 0 0 calc(2px + 5px * var(--g)) color-mix(in oklab, var(--rung-glow) calc(var(--k) * var(--g) * 90%), transparent);
+    transition: --k 260ms var(--ease-out), transform 200ms var(--ease-out), box-shadow 240ms var(--ease-out), opacity 200ms var(--ease-out);
+    transform-origin: bottom center;
+  }
+  #ladder i.past { opacity: .92; }
+  #ladder i.on { transform: scaleY(1.32) scaleX(1.45); box-shadow: 0 0 calc(3px + 6px * var(--g)) color-mix(in oklab, var(--rung-glow) calc(var(--k) * (var(--g) * 0.7 + 0.3) * 100%), transparent); }
+  #ladder i.off { opacity: .38; box-shadow: none; }
+  /* at the wall only the struck rung goes slack — the stack keeps its grade, so
+     hitting the ceiling at 12 doesn't momentarily flatten the whole read-out */
+  #ladder.wall i.on { box-shadow: none; transform: scaleY(1) scaleX(1); opacity: .45; }
+  #cmpGo { height: 32px; padding: 0 16px; border-radius: var(--radius-full); border: 0; background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-medium); font-family: var(--font-sans); font-size: 12px; cursor: pointer; transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+  #cmpGo:hover { background: var(--accent-hover); }
+  #cmpGo:active { transform: scale(.98); }
+  /* Reserves no row at rest — a zero-height sliver that opens only when there
+     is something to say, on the panel's own curve, then collapses back to bare. */
+  .cmp-note {
+    height: 0; margin-top: 0; overflow: hidden; color: var(--text-secondary);
+    line-height: 17px; white-space: nowrap; text-overflow: ellipsis;
+    opacity: 0; transform: translateY(-3px);
+    transition: height var(--dur-snap) var(--ease-out), margin-top var(--dur-snap) var(--ease-out),
+                opacity 170ms var(--ease-out), transform var(--dur-snap) var(--ease-out);
+  }
+  #composer.noted .cmp-note { height: 17px; margin-top: 7px; opacity: 1; transform: none; }
+  .cmp-note .dot { display: inline-block; width: 5px; height: 5px; border-radius: var(--radius-full); background: var(--text-primary); vertical-align: 1px; margin-right: 6px; }
+  #cmpGo { flex: none; }
+  #cmpGo:disabled { opacity: .45; cursor: default; }
+  #composer.offline #cmpField, #composer.offline #cmpCount, #composer.offline #ladder, #composer.offline #cmpMode,
+  #composer.offline .dialhost { opacity: .5; pointer-events: none; }
+  /* multi-select: the panel would sit on top of the very nodes being combined,
+     so it leaves the canvas and floats fixed at the bottom instead */
+  #composer.at-bottom {
+    left: 50%; top: auto; bottom: 18px; transform: translateX(-50%);
+  }
+  /* docked inside the inspect overlay: the Input lives INSIDE the glass island,
+     above the bar — one object growing taller, not a second panel */
+  #composer.in-inspect {
+    position: static; width: auto; transform: none;
+    background: transparent; border: 0; border-radius: 0;
+    box-shadow: none; padding: 14px 14px 10px;
+  }
+  #composer.in-inspect.composing { width: auto; }
+  /* the count already lives in the island's bar — never twice */
+  #composer.in-inspect #cmpCount, #composer.in-inspect #ladder { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    #composer, #cmpField, .cmp-note, .cmp-hint, #cmpInline { transition: none !important; }
+    #cmpCount.wall-hi, #cmpCount.wall-lo { animation: none; }
+    .slot, #ladder, #ladder i { transition-duration: 1ms; }
+    /* no travelling wave: the whole stack re-grades in one snap */
+    #ladder i { transition-delay: 0ms !important; }
+  }
+

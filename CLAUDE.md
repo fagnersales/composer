@@ -6,7 +6,10 @@ compares them on an infinite pan/zoom canvas, iterates new ones from a chosen
 parent, and picks a winner — all from the browser, no chat round-trip.
 
 This repo is the **tool only** (`server.mjs` + `index.html`, zero deps,
-"Monochrome" kit from claude.ai/design). Project data never lives here —
+"Monochrome" kit from claude.ai/design). `index.html` is BUILT — edit the
+pieces in `src/` and run `node build.mjs`, which concatenates them back
+into the single self-contained `index.html`; commit both. Never hand-edit
+`index.html`. Project data never lives here —
 except `demo/`, a sample session, and `sessions.json`, the persisted
 session→dir registry.
 
@@ -65,8 +68,12 @@ Full protocol details: README.md.
 
 - The API contract (see README "HTTP API") — UI and fleet agents both
   depend on it.
-- `index.html` must stay a single self-contained file.
-- The `withPause` script-injection in `index.html` (pause/play inside
+- The built `index.html` must stay a single self-contained file; the rule
+  applies to the artifact — the source lives in `src/`.
+- The `src/` script files are one shared-scope program concatenated in
+  `shell.html`'s marker order — no ES modules, no per-file scoping. Any
+  literal `</script>` in JS strings must stay split.
+- The `withPause` script-injection (`src/state.js`) (pause/play inside
   sandboxed variant iframes) uses split script tags on purpose — don't
   "clean it up".
 - Never rewrite a `requests.jsonl` history; only append.
