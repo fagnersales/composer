@@ -52,6 +52,9 @@
     --lum-10:oklch(.238 0 0); --lum-11:oklch(.189 0 0); --lum-12:oklch(.140 0 0);
     --rung-off:oklch(.885 0 0);
     --rung-glow:rgba(10,10,10,.30);
+    /* the inspect island's glass */
+    --glass-bg:rgba(255,255,255,.62); --glass-bg-solid:rgba(255,255,255,.94);
+    --glow-rgb:10,10,10;
   }
   @property --k { syntax: '<number>'; inherits: false; initial-value: 0; }
   [data-theme="dark"] {
@@ -70,6 +73,8 @@
     --lum-10:oklch(.915 0 0); --lum-11:oklch(.953 0 0); --lum-12:oklch(.990 0 0);
     --rung-off:oklch(.300 0 0);
     --rung-glow:rgba(255,255,255,.34);
+    --glass-bg:rgba(20,20,20,.55); --glass-bg-solid:rgba(20,20,20,.9);
+    --glow-rgb:255,255,255;
   }
   * { margin: 0; box-sizing: border-box; }
   html, body { height: 100%; }
@@ -509,13 +514,16 @@
   #composer.at-bottom {
     left: 50%; top: auto; bottom: 18px; transform: translateX(-50%);
   }
-  /* docked inside the inspect overlay: centered just above the control bar */
+  /* docked inside the inspect overlay: the Input lives INSIDE the glass island,
+     above the bar — one object growing taller, not a second panel */
   #composer.in-inspect {
-    z-index: 45; width: 320px; left: 50%; top: auto;
-    bottom: calc((100vh - min(88vh, 860px)) / 2 + 64px);
-    transform: translateX(-50%); box-shadow: var(--shadow-pop);
+    position: static; width: auto; transform: none;
+    background: transparent; border: 0; border-radius: 0;
+    box-shadow: none; padding: 14px 14px 10px;
   }
-  #composer.in-inspect.composing { width: 520px; }
+  #composer.in-inspect.composing { width: auto; }
+  /* the count already lives in the island's bar — never twice */
+  #composer.in-inspect #cmpCount, #composer.in-inspect #ladder { display: none; }
   @media (prefers-reduced-motion: reduce) {
     #composer, #cmpField, .cmp-note, .cmp-hint, #cmpInline { transition: none !important; }
     #cmpCount.wall-hi, #cmpCount.wall-lo { animation: none; }
@@ -524,38 +532,177 @@
     #ladder i { transition-delay: 0ms !important; }
   }
 
-  /* inspect overlay */
-  #inspect { position: fixed; inset: 0; z-index: 40; background: var(--bg-overlay); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; animation: inspFade var(--dur-base) var(--ease-out); }
-  .insp-panel { width: min(1180px, 94vw); height: min(88vh, 860px); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-pop); animation: inspPop var(--dur-base) var(--ease-out); }
-  .insp-head { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); }
-  .insp-meta { flex: 1; min-width: 0; }
-  .insp-name { font-size: var(--text-lg); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-heading); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .insp-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .insp-tag { font-size: var(--text-xs); color: var(--text-secondary); background: var(--bg-muted); border: 0; padding: 5px 10px; border-radius: var(--radius-full); flex: none; font-weight: var(--weight-medium); }
-  .insp-close { width: 34px; height: 34px; border-radius: var(--radius-full); border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-secondary); cursor: pointer; font-size: 14px; flex: none; transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
-  .insp-close:hover { background: var(--bg-subtle); border-color: var(--border-strong); color: var(--text-primary); }
-  .insp-stage { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; background: var(--bg-page); min-height: 0; }
-  .insp-frame { background: #000; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-lg); max-width: 100%; max-height: 100%; }
-  .insp-frame iframe { display: block; border: 0; width: 100%; height: 100%; }
-  .insp-paused { position: absolute; top: 28px; left: 28px; background: var(--bg-inverse); color: var(--text-inverse); font-size: 12px; font-weight: var(--weight-semibold); padding: 6px 12px; border-radius: var(--radius-full); box-shadow: var(--shadow-md); }
-  .insp-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap; }
-  .insp-aspect { display: flex; gap: 2px; padding: 3px; background: var(--bg-muted); border-radius: var(--radius-full); }
-  .insp-aspect button { padding: 6px 12px; border-radius: var(--radius-full); border: none; background: none; color: var(--text-secondary); cursor: pointer; font-size: 12px; font-family: var(--font-sans); font-weight: var(--weight-medium); transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
-  .insp-aspect button:hover { color: var(--text-primary); }
-  .insp-aspect button.on { background: var(--pill-active); color: var(--text-primary); box-shadow: var(--shadow-sm); font-weight: var(--weight-semibold); }
-  .insp-actions { display: flex; gap: 6px; }
-  .insp-actions button { padding: 0 16px; height: 36px; border-radius: var(--radius-full); border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-primary); cursor: pointer; font-size: 12px; font-family: var(--font-sans); font-weight: var(--weight-medium); transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
-  .insp-actions button:hover { background: var(--bg-subtle); border-color: var(--border-strong); }
-  .insp-actions button:active { transform: scale(.98); }
-  .insp-actions button:disabled { opacity: .4; cursor: default; pointer-events: none; }
-  #ispPick { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-  #ispPick:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-  #ispPick.on { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-semibold); }
-  /* the frame itself goes fullscreen — sized in px normally, so force it to the viewport */
+  /* ---------- inspect overlay ----------
+     Three states of one glass object. Away: only the scrim and the framed
+     variant — no chrome at all. Gathered (pointer near the bottom or a side
+     edge): the island bar materialises — ladder at the left, icon cluster dead
+     centre, Pick at the right — and tall chevron zones wake at the screen's
+     far edges. Grown: the Input docks into the island above the bar. */
+  #inspect { position: fixed; inset: 0; z-index: 40; background: var(--bg-overlay); -webkit-backdrop-filter: blur(10px) saturate(.9); backdrop-filter: blur(10px) saturate(.9); animation: inspFade var(--dur-base) var(--ease-out); }
+  #inspect.scrubbing { cursor: ew-resize; -webkit-user-select: none; user-select: none; }
+  .insp-stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 44px; transition: padding var(--dur-snap) var(--ease-out); }
+  #inspect.grown .insp-stage { padding-bottom: 150px; }
+  .insp-frame {
+    position: relative; background: #000; border-radius: var(--radius-lg); overflow: hidden;
+    box-shadow: 0 30px 90px rgba(10,10,10,.5);
+    aspect-ratio: var(--ar, 16/9);
+    height: min(100%, calc((100vw - 88px) / var(--arn, 1.7778)));
+    width: auto; max-width: 100%;
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+  }
+  .insp-frame iframe { position: absolute; inset: 0; display: block; border: 0; width: 100%; height: 100%; }
+  /* the slide-and-fade that sells a variant change */
+  .insp-frame.slip-left  { opacity: 0; transform: translateX(-18px); transition: none; }
+  .insp-frame.slip-right { opacity: 0; transform: translateX(18px); transition: none; }
+  .insp-paused { position: absolute; top: 58px; left: 58px; z-index: 3; background: var(--bg-inverse); color: var(--text-inverse); font-size: 12px; font-weight: var(--weight-semibold); padding: 6px 12px; border-radius: var(--radius-full); box-shadow: var(--shadow-md); }
   #ispFrame:fullscreen { width: 100vw !important; height: 100vh !important; border-radius: 0; }
   #ispFrame:-webkit-full-screen { width: 100vw !important; height: 100vh !important; border-radius: 0; }
   @keyframes inspFade { from { opacity: 0; } }
-  @keyframes inspPop { from { opacity: 0; transform: scale(.98) translateY(6px); } }
+
+  /* navigation — two tall quiet hit zones at the screen's far edges; a single
+     chevron each, at the edge of perception until that half is hovered */
+  .insp-nav {
+    position: absolute; top: 0; bottom: 0; width: 64px; z-index: 44;
+    border: 0; padding: 0; margin: 0; appearance: none; background: transparent; cursor: pointer;
+    display: grid; place-items: center; color: var(--text-primary);
+    opacity: 0; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out);
+  }
+  .insp-nav.prev { left: 0; }
+  .insp-nav.next { right: 0; }
+  #inspect.gathered .insp-nav, #inspect.grown .insp-nav { opacity: 1; pointer-events: auto; }
+  .insp-nav::before { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity var(--dur-base) var(--ease-out); pointer-events: none; }
+  .insp-nav.prev::before { background: linear-gradient(to right, rgba(var(--glow-rgb),.055), rgba(var(--glow-rgb),0) 82%); }
+  .insp-nav.next::before { background: linear-gradient(to left,  rgba(var(--glow-rgb),.055), rgba(var(--glow-rgb),0) 82%); }
+  .insp-nav:hover:not(:disabled)::before { opacity: 1; }
+  .insp-nav svg { width: 22px; height: 22px; position: relative; opacity: .25; filter: drop-shadow(0 1px 3px rgba(10,10,10,.6)); transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-snap) var(--ease-out); }
+  .insp-nav.prev svg { transform: translateX(2px); }
+  .insp-nav.next svg { transform: translateX(-2px); }
+  .insp-nav:hover:not(:disabled) svg { opacity: 1; }
+  .insp-nav.prev:hover:not(:disabled) svg { transform: translateX(-2px); }
+  .insp-nav.next:hover:not(:disabled) svg { transform: translateX(2px); }
+  .insp-nav:active:not(:disabled) svg { transform: scale(.9); }
+  /* the ends are walls, not a wrap — the zone goes dead and dim */
+  .insp-nav:disabled { cursor: default; }
+  .insp-nav:disabled svg { opacity: .07; }
+
+  /* the sensing regions: a bottom band plus a strip down each vertical edge —
+     invisible, click-inert, they only wake the chrome */
+  .insp-zone { position: absolute; left: 0; right: 0; bottom: 0; height: 170px; z-index: 42; }
+  .insp-wake { position: absolute; top: 0; bottom: 0; width: 88px; z-index: 41; }
+  .insp-wake.left { left: 0; }
+  .insp-wake.right { right: 0; }
+  #inspect.grown .insp-zone, #inspect.grown .insp-wake { pointer-events: none; }
+
+  /* AWAY — nothing at all; approach condenses a swell of light inward and the
+     island materialises out of it */
+  .insp-glow {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 132px; z-index: 40; pointer-events: none;
+    background: radial-gradient(125% 108% at 50% 132%,
+      rgba(var(--glow-rgb),.085) 0%, rgba(var(--glow-rgb),.052) 32%,
+      rgba(var(--glow-rgb),.018) 56%, rgba(var(--glow-rgb),0) 76%);
+    opacity: 0; transform: scaleX(1); transform-origin: bottom center;
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-snap) var(--ease-out);
+  }
+  #inspect.gathered .insp-glow { opacity: .55; transform: scaleX(.62) scaleY(.9); }
+  #inspect.grown    .insp-glow { opacity: 0;   transform: scaleX(.66) scaleY(.8); }
+
+  /* the island */
+  .insp-glass {
+    position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 45;
+    width: 772px; max-width: calc(100vw - 32px);
+    display: flex; flex-direction: column; border-radius: var(--radius-xl);
+    transition: width var(--dur-snap) var(--ease-out);
+  }
+  #inspect.grown .insp-glass { width: 868px; }
+  .insp-glass::before {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(22px) saturate(1.2); backdrop-filter: blur(22px) saturate(1.2);
+    border: 1px solid var(--border-default); box-shadow: var(--shadow-pop);
+    opacity: 0; transform: scaleY(.86); transform-origin: bottom center;
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-snap) var(--ease-out), background var(--dur-base) var(--ease-out);
+    pointer-events: none;
+  }
+  #inspect.gathered .insp-glass::before { opacity: 1; transform: scaleY(1); }
+  #inspect.grown .insp-glass::before { opacity: 1; transform: scaleY(1); background: var(--glass-bg-solid); }
+
+  /* the unfolding Input host — same object, taller */
+  .insp-grow { position: relative; height: 0; opacity: 0; overflow: hidden; transition: height var(--dur-snap) var(--ease-out), opacity var(--dur-base) var(--ease-out); }
+  #inspect.grown .insp-grow { height: auto; opacity: 1; overflow: visible; transition: opacity var(--dur-base) var(--ease-out) 90ms; }
+
+  /* the bar: ladder pinned left, icons dead centre, Pick + close at the right */
+  .insp-bar { position: relative; display: flex; align-items: center; padding: 8px 10px 8px 14px; border-top: 1px solid transparent; min-height: 48px; transition: border-color var(--dur-base) var(--ease-out); }
+  #inspect.grown .insp-bar { padding: 12px 12px 12px 16px; border-top-color: var(--border-subtle); }
+  .insp-acts { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); display: flex; align-items: center; gap: 2px; }
+  .insp-pick { margin-left: auto; }
+
+  /* the ladder cluster: scrub the rungs, hover to preview, or press − / + */
+  .insp-ladder-wrap { display: flex; align-items: center; gap: 8px; flex: none; border-radius: var(--radius-full); transition: opacity var(--dur-base) var(--ease-out); }
+  .insp-ladder-wrap.dim { opacity: .3; pointer-events: none; }
+  .insp-ladder { display: flex; align-items: flex-end; gap: 2px; padding: 6px 4px; border-radius: var(--radius-sm); cursor: ew-resize; position: relative; touch-action: none; }
+  .insp-ladder i { display: block; width: 1.5px; height: 7px; border-radius: 1px; background: var(--rung-off); transition: background var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+  .insp-ladder i:nth-child(n+5) { height: 8px; }
+  .insp-ladder i:nth-child(n+9) { height: 9px; }
+  .insp-ladder i.lit { background: var(--c); }
+  .insp-ladder i.pre { background: var(--c); opacity: .45; }
+  .insp-ladder i.dropping { opacity: .45; }
+  .insp-ladder:hover i { transform: translateY(-.5px); }
+  .insp-ladder-n { font-size: 11px; font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .insp-ladder-n .u { font-weight: var(--weight-medium); color: var(--text-tertiary); font-size: .85em; }
+  .insp-step { display: flex; align-items: center; gap: 1px; }
+  .insp-step button { appearance: none; border: 0; background: transparent; cursor: pointer; width: 22px; height: 22px; flex: none; border-radius: var(--radius-full); display: grid; place-items: center; color: var(--text-tertiary); transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out); }
+  .insp-step button svg { width: 11px; height: 11px; }
+  .insp-step button:hover:not(.off) { background: var(--bg-muted); color: var(--text-primary); }
+  .insp-step button:active:not(.off) { transform: scale(.92); }
+  .insp-step button.off { opacity: .28; cursor: default; }
+
+  .insp-sep { width: 1px; height: 18px; background: var(--border-default); margin: 0 5px; }
+  .insp-ico { appearance: none; border: 0; background: transparent; cursor: pointer; width: 32px; height: 32px; border-radius: var(--radius-full); display: grid; place-items: center; color: var(--text-secondary); position: relative; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+  .insp-ico:hover:not(:disabled) { background: var(--bg-muted); color: var(--text-primary); }
+  .insp-ico.on { background: var(--bg-muted); color: var(--text-primary); }
+  .insp-ico:disabled { opacity: .3; cursor: default; }
+  .insp-ico svg { width: 15px; height: 15px; position: relative; }
+
+  .insp-pick {
+    appearance: none; border: 0; cursor: pointer; font-family: var(--font-sans);
+    height: 32px; padding: 0 15px; border-radius: var(--radius-full);
+    background: var(--accent); color: var(--accent-fg);
+    font-size: 12.5px; font-weight: var(--weight-semibold);
+    display: flex; align-items: center; gap: 6px; flex: none;
+    transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+  }
+  .insp-pick:hover { opacity: .88; }
+  .insp-pick:active { transform: scale(.97); }
+  .insp-pick.won { background: var(--bg-muted); color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .insp-pick svg { width: 13px; height: 13px; }
+
+  /* aspect popover, anchored to its mark */
+  .insp-anchor { position: relative; }
+  .insp-pop {
+    position: absolute; bottom: calc(100% + 10px); left: 50%;
+    transform: translateX(-50%) translateY(6px) scale(.96); transform-origin: bottom center;
+    background: var(--glass-bg-solid);
+    -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+    border: 1px solid var(--border-default); border-radius: var(--radius-full); box-shadow: var(--shadow-pop);
+    padding: 3px; display: flex; gap: 2px; opacity: 0; pointer-events: none;
+    transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); z-index: 5;
+  }
+  .insp-pop.open { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0) scale(1); }
+  .insp-pop button { appearance: none; border: 0; background: transparent; cursor: pointer; font-family: var(--font-sans); font-size: 11.5px; font-weight: var(--weight-medium); color: var(--text-tertiary); padding: 5px 10px; border-radius: var(--radius-full); white-space: nowrap; transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); }
+  .insp-pop button:hover { color: var(--text-secondary); }
+  .insp-pop button.on { background: var(--bg-muted); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+
+  /* Away has no glyphs at all — the bar's contents rise into being on approach */
+  #inspect:not(.gathered):not(.grown) .insp-bar { pointer-events: none; }
+  .insp-bar .insp-ico, .insp-pick, .insp-ladder-wrap { transform: translateY(0); transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), opacity var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), transform var(--dur-snap) var(--ease-out); }
+  #inspect:not(.gathered):not(.grown) .insp-bar .insp-ico,
+  #inspect:not(.gathered):not(.grown) .insp-pick,
+  #inspect:not(.gathered):not(.grown) .insp-ladder-wrap { opacity: 0; transform: translateY(5px); }
+
+  .insp-hints { position: absolute; right: 24px; bottom: 14px; z-index: 43; display: flex; gap: 12px; font-size: 10.5px; color: var(--text-tertiary); opacity: 0; transition: opacity var(--dur-base) var(--ease-out); pointer-events: none; }
+  #inspect.gathered .insp-hints, #inspect.grown .insp-hints { opacity: .75; }
+  .insp-hints span { display: flex; align-items: center; gap: 5px; }
+  .insp-hints kbd { font: inherit; font-size: 10px; background: var(--bg-muted); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1px 5px; color: var(--text-secondary); }
 
   /* toast */
   #toast {
@@ -629,30 +776,71 @@
   </div>
 
   <div id="inspect" hidden>
-    <div class="insp-panel">
-      <div class="insp-head">
-        <div class="insp-meta">
-          <div class="insp-name" id="ispName"></div>
-          <div class="insp-desc" id="ispDesc"></div>
+    <div class="insp-stage" id="ispStage">
+      <div class="insp-frame" id="ispFrame"></div>
+      <div class="insp-paused" id="ispPaused" hidden>❚❚ Paused</div>
+    </div>
+
+    <button class="insp-nav prev" id="ispPrev" aria-label="Previous variant (←)" title="Previous variant (←)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <button class="insp-nav next" id="ispNext" aria-label="Next variant (→)" title="Next variant (→)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+
+    <div class="insp-glow" aria-hidden="true"></div>
+    <div class="insp-wake left" id="ispWakeL"></div>
+    <div class="insp-wake right" id="ispWakeR"></div>
+    <div class="insp-zone" id="ispZone"></div>
+
+    <div class="insp-hints" aria-hidden="true">
+      <span><kbd>Esc</kbd> close</span>
+      <span><kbd>F</kbd> fullscreen</span>
+      <span><kbd>I</kbd> iterate</span>
+      <span><kbd>←</kbd><kbd>→</kbd> variants</span>
+    </div>
+
+    <div class="insp-glass" id="ispGlass">
+      <div class="insp-grow" id="ispGrow"></div>
+      <div class="insp-bar">
+        <div class="insp-ladder-wrap" id="ispLadderWrap">
+          <div class="insp-ladder" id="ispLadder" title="Drag or scroll to set the variant count (1–12)"></div>
+          <span class="insp-ladder-n" id="ispLadderN"></span>
+          <span class="insp-step">
+            <button id="ispMinus" title="Fewer variants" aria-label="Fewer variants"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+            <button id="ispPlus" title="More variants" aria-label="More variants"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+          </span>
         </div>
-        <div class="insp-tag" id="ispModel"></div>
-        <button class="insp-close" id="ispClose" title="Close (Esc)">✕</button>
-      </div>
-      <div class="insp-stage" id="ispStage">
-        <div class="insp-frame" id="ispFrame"></div>
-        <div class="insp-paused" id="ispPaused" hidden>❚❚ Paused</div>
-      </div>
-      <div class="insp-controls">
-        <div class="insp-aspect" id="ispAspect">
-          <button data-a="16:9" class="on">16:9</button><button data-a="21:9">21:9</button><button data-a="1:1">1:1</button><button data-a="9:16">9:16</button>
+        <div class="insp-acts">
+          <span class="insp-anchor">
+            <div class="insp-pop" id="ispAspect">
+              <button data-a="16:9" class="on">16:9</button><button data-a="21:9">21:9</button><button data-a="1:1">1:1</button><button data-a="9:16">9:16</button>
+            </div>
+            <button class="insp-ico" id="ispAspectBtn" title="Aspect ratio">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 6v12"/></svg>
+            </button>
+          </span>
+          <button class="insp-ico" id="ispFull" title="Fullscreen ( F )">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg>
+          </button>
+          <button class="insp-ico" id="ispPause" title="Pause">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 5v14M15 5v14"/></svg>
+          </button>
+          <button class="insp-ico" id="ispRestart" title="Restart">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
+          </button>
+          <span class="insp-sep"></span>
+          <button class="insp-ico" id="ispIterate" title="Iterate on this variant ( I )">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
         </div>
-        <div class="insp-actions">
-          <button id="ispFull" title="Fullscreen ( F )">Fullscreen</button>
-          <button id="ispIterate" title="Iterate on this variant ( I )">Iterate…</button>
-          <button id="ispPause">Pause</button>
-          <button id="ispRestart">Restart</button>
-          <button id="ispPick">Pick this one</button>
-        </div>
+        <button class="insp-pick" id="ispPick">
+          <span id="ispPickLabel">Pick this one</span>
+          <svg id="ispPickCheck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
+        </button>
+        <button class="insp-ico" id="ispClose" title="Close (Esc)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
       </div>
     </div>
   </div>
@@ -708,17 +896,24 @@ var cmpNote = document.getElementById('cmpNote');
 var cmpImgs = document.getElementById('cmpImgs');
 var mini = document.getElementById('minimap');
 var inspect = document.getElementById('inspect');
-var ispName = document.getElementById('ispName');
-var ispDesc = document.getElementById('ispDesc');
-var ispModel = document.getElementById('ispModel');
 var ispFrame = document.getElementById('ispFrame');
 var ispStage = document.getElementById('ispStage');
 var inspPaused = document.getElementById('ispPaused');
 var ispAspect = document.getElementById('ispAspect');
+var ispAspectBtn = document.getElementById('ispAspectBtn');
 var ispPause = document.getElementById('ispPause');
 var ispRestart = document.getElementById('ispRestart');
 var ispPick = document.getElementById('ispPick');
+var ispPickLabel = document.getElementById('ispPickLabel');
+var ispPickCheck = document.getElementById('ispPickCheck');
 var ispClose = document.getElementById('ispClose');
+var ispPrev = document.getElementById('ispPrev');
+var ispNext = document.getElementById('ispNext');
+var ispGlass = document.getElementById('ispGlass');
+var ispGrow = document.getElementById('ispGrow');
+var ispLadder = document.getElementById('ispLadder');
+var ispLadderN = document.getElementById('ispLadderN');
+var ispLadderWrap = document.getElementById('ispLadderWrap');
 var toastEl = document.getElementById('toast');
 
 /* ---------- helpers ---------- */
@@ -1320,6 +1515,7 @@ function navArrow(key) {
 /* while inspecting, arrows retarget the overlay to the variant navigated to */
 function handleNavKey(key) {
   var inspecting = state.inspectId != null;
+  if (inspecting) ispGather(); // keyboard travel wakes the chrome like the pointer does
   var p = selPrimary();
   if (inspecting && (!p || p.id !== state.inspectId)) select(state.inspectId);
   navArrow(key);
@@ -1414,10 +1610,7 @@ function refreshRequests() {
       trace('winner', { id: w });
       state.winner = w;
       allNodes().forEach(updateNodeVisual);
-      if (state.inspectId) {
-        ispPick.textContent = winnerNodeId() === state.inspectId ? 'Winner ✓' : 'Pick this one';
-        ispPick.classList.toggle('on', winnerNodeId() === state.inspectId);
-      }
+      if (state.inspectId) ispPaintPick();
     }
     // ghost nodes for the slots of open iterate requests still being built
     var wanted = {};
@@ -1562,20 +1755,65 @@ cmpReject.addEventListener('click', function (e) {
   if (sel.length === 1) toggleReject(sel[0].id);
 });
 
-/* ---------- inspect ---------- */
+/* ---------- inspect ----------
+   Three states of one glass object: Away (nothing drawn but the framed
+   variant), Gathered (the island bar + edge chevrons wake on approach) and
+   Grown (the Input docks into the island). The state lives as classes on
+   #inspect itself. */
+function ispState() {
+  return inspect.classList.contains('grown') ? 'grown'
+    : inspect.classList.contains('gathered') ? 'gathered' : 'away';
+}
+var ispScatterT = null;
+function ispGather() {
+  clearTimeout(ispScatterT);
+  if (!inspect.classList.contains('gathered')) trace('inspect:gather');
+  inspect.classList.add('gathered');
+}
+function ispScatterSoon() {
+  if (inspect.classList.contains('grown') || ispScrub) return;
+  clearTimeout(ispScatterT);
+  ispScatterT = setTimeout(function () {
+    if (!inspect.classList.contains('grown') && !ispAspect.classList.contains('open') && !ispScrub) {
+      inspect.classList.remove('gathered');
+    }
+  }, 500);
+}
+
+function ispPaintPick() {
+  if (state.inspectId == null) return;
+  var won = winnerNodeId() === state.inspectId;
+  ispPickLabel.textContent = won ? 'Winner' : 'Pick this one';
+  ispPickCheck.style.display = won ? 'block' : 'none';
+  ispPick.classList.toggle('won', won);
+}
+/* the edge zones walk the same sibling list as ←/→; the ends are walls */
+function ispPaintNav() {
+  var n = byId(state.inspectId);
+  if (!n) return;
+  var sibs = navSiblingsOf(n), i = sibs.indexOf(n);
+  ispPrev.disabled = i <= 0;
+  ispNext.disabled = i < 0 || i >= sibs.length - 1;
+}
+
 function openInspect(id) {
   var n = byId(id);
   if (!n) return;
   trace('inspect:open', { id: id });
+  var prev = (!inspect.hidden && state.inspectId != null && state.inspectId !== id) ? byId(state.inspectId) : null;
   state.inspectId = id;
   inspect.hidden = false;
-  ispName.textContent = n.name;
-  ispDesc.textContent = n.description;
-  ispModel.textContent = n.model;
-  ispPick.textContent = winnerNodeId() === id ? 'Winner ✓' : 'Pick this one';
-  ispPick.classList.toggle('on', winnerNodeId() === id);
+  ispPaintPick();
+  ispPaintNav();
   buildInspFrame(n);
   setAspect(currentAspect);
+  /* the slide-and-fade that sells a variant change */
+  if (prev) {
+    ispFrame.classList.add(n.x >= prev.x ? 'slip-right' : 'slip-left');
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      ispFrame.classList.remove('slip-left', 'slip-right');
+    }); });
+  }
 }
 function buildInspFrame(n) {
   ispFrame.innerHTML = '';
@@ -1593,42 +1831,52 @@ function buildInspFrame(n) {
   ispFrame.appendChild(f);
   inspIframe = f;
   insPausedState = false;
-  ispPause.textContent = 'Pause';
-  inspPaused.hidden = true;
+  ispRenderPause();
 }
+/* the frame is CSS-sized off its aspect ratio — setting it is two custom props */
 function setAspect(a) {
   if (a !== currentAspect) trace('inspect:aspect', { aspect: a });
   currentAspect = a;
   var kids = ispAspect.children;
   for (var i = 0; i < kids.length; i++) kids[i].classList.toggle('on', kids[i].getAttribute('data-a') === a);
   var parts = a.split(':'), wr = +parts[0], hr = +parts[1];
-  var availW = ispStage.clientWidth - 40, availH = ispStage.clientHeight - 40;
-  var w = availW, h = w * hr / wr;
-  if (h > availH) { h = availH; w = h * wr / hr; }
-  ispFrame.style.width = Math.round(w) + 'px';
-  ispFrame.style.height = Math.round(h) + 'px';
+  ispFrame.style.setProperty('--ar', wr + '/' + hr);
+  ispFrame.style.setProperty('--arn', wr / hr);
+}
+function ispSetPopOpen(v) {
+  ispAspect.classList.toggle('open', !!v);
+  ispAspectBtn.classList.toggle('on', !!v);
 }
 function closeInspect() {
   if (state.inspectId != null) trace('inspect:close', { id: state.inspectId });
   closeInspectIterate();
+  ispSetPopOpen(false);
+  clearTimeout(ispScatterT);
+  inspect.classList.remove('gathered');
   inspect.hidden = true;
   state.inspectId = null;
   ispFrame.innerHTML = '';
   inspIframe = null;
 }
-/* the iterate panel docks into the inspect overlay so requests can be sent from there */
+/* the Input docks INTO the island: the same glass object grows a composer */
 function openInspectIterate() {
   if (state.inspectId == null) return;
   select(state.inspectId); // docked iterate is about the inspected variant only
   composer.classList.add('in-inspect');
+  ispGrow.appendChild(composer);
+  inspect.classList.add('grown');
+  ispGather();
   cmpLayout(true);   // docked, the resting field is wider — re-decide the state
   syncComposer();
   cmpInput.focus();
 }
 function closeInspectIterate() {
+  inspect.classList.remove('grown');
+  if (composer.parentNode === ispGrow) document.body.insertBefore(composer, inspect);
   composer.classList.remove('in-inspect');
   cmpLayout(true);
   syncComposer();
+  ispScatterSoon();
 }
 /* Esc peels one layer at a time: iterate panel, then overlay, then selection */
 function escAction() {
@@ -1636,6 +1884,7 @@ function escAction() {
   if (document.fullscreenElement || document.webkitFullscreenElement) return;
   // the model card is the shallowest thing open — Esc folds it before anything else
   if (composer.classList.contains('dialopen')) { cmpSetDialOpen(false); return; }
+  if (ispAspect.classList.contains('open')) { ispSetPopOpen(false); return; }
   if (composer.classList.contains('in-inspect')) closeInspectIterate();
   else if (state.inspectId != null) closeInspect();
   else select(null);
@@ -1652,16 +1901,20 @@ function toggleFullscreen() {
     else if (ispFrame.webkitRequestFullscreen) ispFrame.webkitRequestFullscreen();
   }
 }
+function ispRenderPause() {
+  inspPaused.hidden = !insPausedState;
+  ispPause.classList.toggle('on', insPausedState);
+  ispPause.title = insPausedState ? 'Play' : 'Pause';
+  ispPause.querySelector('svg').innerHTML = insPausedState
+    ? '<path d="M7 4.5v15l13-7.5z"/>'
+    : '<path d="M9 5v14M15 5v14"/>';
+}
 function togglePause() {
   if (!inspIframe) return;
   trace('inspect:' + (insPausedState ? 'play' : 'pause'), { id: state.inspectId });
-  if (insPausedState) {
-    inspIframe.contentWindow.postMessage('play', '*');
-    insPausedState = false; ispPause.textContent = 'Pause'; inspPaused.hidden = true;
-  } else {
-    inspIframe.contentWindow.postMessage('pause', '*');
-    insPausedState = true; ispPause.textContent = 'Play'; inspPaused.hidden = false;
-  }
+  inspIframe.contentWindow.postMessage(insPausedState ? 'play' : 'pause', '*');
+  insPausedState = !insPausedState;
+  ispRenderPause();
 }
 function setWinner(id) {
   if (!fleetLive) { toast('Fleet offline — run /composer in the project to reconnect'); return; }
@@ -1671,10 +1924,7 @@ function setWinner(id) {
   state.winner = file; // optimistic; server truth arrives via refreshRequests
   allNodes().forEach(updateNodeVisual);
   renderMinimap();
-  if (state.inspectId) {
-    ispPick.textContent = winnerNodeId() === state.inspectId ? 'Winner ✓' : 'Pick this one';
-    ispPick.classList.toggle('on', winnerNodeId() === state.inspectId);
-  }
+  if (state.inspectId) ispPaintPick();
   sendRequest('Pick "' + n.name + '" — implement this design.', [file], null, 'pick').then(refreshRequests);
 }
 
@@ -1891,6 +2141,8 @@ function setCmpModeType(m) {
   var btns = cmpModeEl.querySelectorAll('[data-m]');
   for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-m') === m);
   document.getElementById('cmpCount').hidden = m === 'tweak';
+  // tweak/reject build exactly one child — the island's count goes quiet
+  ispLadderWrap.classList.toggle('dim', m !== 'iterate');
   cmpGo.textContent = m === 'tweak' ? 'Tweak' : 'Iterate';
   cmpApplyPlaceholder();
   cmpSyncInline();
@@ -2292,6 +2544,7 @@ function setCmpCount(n, echo, dirHint) {
   cmpPlus.title  = cmpCount >= CMP_MAX ? 'Already at 12 variants' : 'More variants';
   cmpRender(cmpCount, dir, changed);
   cmpLightLadder(cmpCount, false);
+  ispLadderSync(); // the inspect island's ladder reads the same count
   if (!changed) return;
   // a held +/- fires fast — log only where the count comes to rest
   clearTimeout(setCmpCount._tr);
@@ -2356,8 +2609,17 @@ clearTimeout(cmpLitTimer);
 cmpLadder.classList.remove('lit');
 
 for (var ai = 0; ai < ispAspect.children.length; ai++) {
-  ispAspect.children[ai].addEventListener('click', function () { setAspect(this.getAttribute('data-a')); });
+  ispAspect.children[ai].addEventListener('click', function (e) {
+    e.stopPropagation();
+    setAspect(this.getAttribute('data-a'));
+    ispSetPopOpen(false);
+  });
 }
+ispAspectBtn.addEventListener('click', function (e) {
+  e.stopPropagation();
+  ispSetPopOpen(!ispAspect.classList.contains('open'));
+});
+document.addEventListener('click', function () { ispSetPopOpen(false); });
 document.getElementById('ispIterate').addEventListener('click', function () {
   if (composer.classList.contains('in-inspect')) closeInspectIterate(); else openInspectIterate();
 });
@@ -2365,8 +2627,90 @@ document.getElementById('ispFull').addEventListener('click', toggleFullscreen);
 ispPause.addEventListener('click', togglePause);
 ispRestart.addEventListener('click', function () { var n = byId(state.inspectId); if (n) buildInspFrame(n); });
 ispPick.addEventListener('click', function () { if (state.inspectId != null) setWinner(state.inspectId); });
-ispClose.addEventListener('click', closeInspect);
-inspect.addEventListener('mousedown', function (e) { if (e.target === inspect) closeInspect(); });
+ispClose.addEventListener('click', function () {
+  if (composer.classList.contains('in-inspect')) closeInspectIterate(); else closeInspect();
+});
+/* the stage's empty space is the scrim — clicking it closes */
+ispStage.addEventListener('mousedown', function (e) { if (e.target === ispStage) closeInspect(); });
+
+/* ---- the island wakes on approach: bottom band, both vertical edges, the
+   glass itself, and the nav zones (that's where the chevrons live) ---- */
+[document.getElementById('ispZone'), document.getElementById('ispWakeL'),
+ document.getElementById('ispWakeR'), ispGlass, ispPrev, ispNext].forEach(function (el) {
+  el.addEventListener('pointerenter', ispGather);
+  el.addEventListener('pointerleave', ispScatterSoon);
+});
+ispGlass.addEventListener('focusin', ispGather);
+
+/* the edge zones step through siblings — the pointer twin of ← / → */
+ispPrev.addEventListener('click', function () { handleNavKey('ArrowLeft'); });
+ispNext.addEventListener('click', function () { handleNavKey('ArrowRight'); });
+
+/* ---- the island's ladder: hover previews, press-and-drag scrubs, the wheel
+   steps, − / + hold. It reads and writes the same count as the Input. ---- */
+var ispRungs = [];
+for (var iri = 0; iri < CMP_MAX; iri++) {
+  var ir = document.createElement('i');
+  ir.style.setProperty('--c', 'var(--lum-' + (iri + 1) + ')');
+  ispLadder.appendChild(ir);
+  ispRungs.push(ir);
+}
+var ispScrub = false, ispPrevw = null;
+function ispLadderSync() {
+  if (!ispRungs || !ispRungs.length) return; // called from setCmpCount before the rungs exist
+  var p = ispPrevw;
+  ispRungs.forEach(function (r, i) {
+    var lit = i < cmpCount;
+    r.classList.toggle('lit', lit);
+    r.classList.toggle('pre', p !== null && !lit && i < p);
+    r.classList.toggle('dropping', p !== null && lit && i >= p);
+  });
+  var v = p !== null ? p : cmpCount;
+  ispLadderN.innerHTML = v + ' <span class="u">' + (v === 1 ? 'variant' : 'variants') + '</span>';
+  document.getElementById('ispMinus').classList.toggle('off', cmpCount <= CMP_MIN);
+  document.getElementById('ispPlus').classList.toggle('off', cmpCount >= CMP_MAX);
+}
+function ispCountAt(x) {
+  var first = ispRungs[0].getBoundingClientRect();
+  var last = ispRungs[CMP_MAX - 1].getBoundingClientRect();
+  var t = (x - first.left) / (last.right - first.left);
+  return clamp(Math.ceil(t * CMP_MAX), CMP_MIN, CMP_MAX);
+}
+ispLadder.addEventListener('pointerdown', function (e) {
+  e.preventDefault();
+  ispScrub = true;
+  inspect.classList.add('scrubbing');
+  ispLadder.setPointerCapture(e.pointerId);
+  ispPrevw = null;
+  setCmpCount(ispCountAt(e.clientX));
+});
+ispLadder.addEventListener('pointermove', function (e) {
+  if (ispScrub) { ispPrevw = null; setCmpCount(ispCountAt(e.clientX)); return; }
+  var p = ispCountAt(e.clientX);
+  if (p !== ispPrevw) { ispPrevw = p; ispLadderSync(); }
+});
+function ispEndScrub(e) {
+  if (!ispScrub) return;
+  ispScrub = false;
+  inspect.classList.remove('scrubbing');
+  try { ispLadder.releasePointerCapture(e.pointerId); } catch (err) {}
+  ispPrevw = null; ispLadderSync();
+  ispScatterSoon();
+}
+ispLadder.addEventListener('pointerup', ispEndScrub);
+ispLadder.addEventListener('pointercancel', ispEndScrub);
+ispLadder.addEventListener('pointerleave', function () {
+  if (ispScrub) return;
+  ispPrevw = null; ispLadderSync();
+});
+ispLadder.addEventListener('wheel', function (e) {
+  e.preventDefault();
+  ispPrevw = null;
+  cmpBump(e.deltaY > 0 ? -1 : 1);
+}, { passive: false });
+cmpHoldable(document.getElementById('ispMinus'), -1);
+cmpHoldable(document.getElementById('ispPlus'), 1);
+ispLadderSync();
 
 window.addEventListener('keydown', function (e) {
   var t = e.target;
