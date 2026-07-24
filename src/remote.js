@@ -153,33 +153,29 @@ function qrMatrix(text) {
 /* ---------- pair overlay ---------- */
 var qrOverlay = document.getElementById('qrOverlay');
 var qrCanvas = document.getElementById('qrCanvas');
-var qrUrlEl = document.getElementById('qrUrl');
 function openPhonePair() {
-  if (!PHONE_BASE || !TASK) { toast('No task to pair yet'); return; }
-  var url = PHONE_BASE + '?task=' + TASK;
+  if (!PHONE_BASE) { toast('No session to pair yet'); return; }
+  // no task in the url — the phone follows whatever task the board is on
+  var url = PHONE_BASE;
   trace('phone:pair', { url: url });
-  qrUrlEl.textContent = url;
-  var mtx = qrMatrix(url), ctx = qrCanvas.getContext('2d');
-  ctx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
-  if (mtx) {
-    var quiet = 4, cells = mtx.length + quiet * 2;
-    var px = Math.floor(qrCanvas.width / cells);
-    var off = Math.floor((qrCanvas.width - px * cells) / 2) + quiet * px;
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, qrCanvas.width, qrCanvas.height);
-    ctx.fillStyle = '#000';
-    mtx.forEach(function (row, y) {
-      row.forEach(function (dark, x) {
-        if (dark) ctx.fillRect(off + x * px, off + y * px, px, px);
-      });
+  var mtx = qrMatrix(url);
+  if (!mtx) { toast('Pairing link too long for a QR'); return; }
+  // canvas sized to exactly quiet zone + modules, so the code sits centered
+  var quiet = 4, cells = mtx.length + quiet * 2;
+  var px = Math.max(3, Math.floor(232 / cells));
+  qrCanvas.width = qrCanvas.height = cells * px;
+  qrCanvas.style.width = qrCanvas.style.height = cells * px + 'px';
+  var ctx = qrCanvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, qrCanvas.width, qrCanvas.height);
+  ctx.fillStyle = '#000';
+  mtx.forEach(function (row, y) {
+    row.forEach(function (dark, x) {
+      if (dark) ctx.fillRect((quiet + x) * px, (quiet + y) * px, px, px);
     });
-  }
-  qrCanvas.style.display = mtx ? 'block' : 'none';
+  });
   qrOverlay.hidden = false;
 }
 document.getElementById('tbPhone').addEventListener('click', openPhonePair);
 document.getElementById('qrClose').addEventListener('click', function () { qrOverlay.hidden = true; });
 qrOverlay.addEventListener('mousedown', function (e) { if (e.target === qrOverlay) qrOverlay.hidden = true; });
-qrUrlEl.addEventListener('click', function () {
-  if (navigator.clipboard) navigator.clipboard.writeText(qrUrlEl.textContent).then(function () { toast('Link copied'); });
-});

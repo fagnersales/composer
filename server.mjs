@@ -34,6 +34,9 @@ function lanIP() {
 }
 
 const lastSeen = new Map();
+// which task the board is showing, per session — a paired phone follows it
+// (and the board follows the phone's switcher back). Ephemeral, like focus.
+const sessionTask = new Map();
 function isLive(name) { return Date.now() - (lastSeen.get(name) || 0) < LIVE_MS; }
 function taskPath(name, task) { return path.join(registry[name].dir, task); }
 
@@ -200,6 +203,8 @@ function phonePage() {
     font-family:'Geist',ui-sans-serif,-apple-system,sans-serif}
   header{flex:none;display:flex;align-items:center;gap:8px;padding:10px 14px;
     padding-top:calc(10px + env(safe-area-inset-top));border-bottom:1px solid #262626;font-size:13px}
+  header select{flex:none;max-width:42%;border:1px solid #262626;border-radius:8px;background:#141414;
+    color:#f5f5f5;font:inherit;font-size:12px;padding:4px 6px;overflow:hidden;text-overflow:ellipsis}
   header .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   header .ct{margin-left:auto;color:#737373;font-variant-numeric:tabular-nums;flex:none}
   header i{width:7px;height:7px;border-radius:50%;background:#404040;flex:none}
@@ -211,7 +216,7 @@ function phonePage() {
   footer button:disabled{color:#404040}
   .empty{flex:1;display:grid;place-items:center;color:#737373;font-size:13px}
 </style></head><body>
-<header><i id="dot"></i><span class="nm" id="nm">connecting…</span><span class="ct" id="ct"></span></header>
+<header><select id="taskSel" aria-label="Task"></select><i id="dot"></i><span class="nm" id="nm">connecting…</span><span class="ct" id="ct"></span></header>
 <iframe id="fr"></iframe>
 <footer><button id="prev" aria-label="Previous variant">‹</button><button id="next" aria-label="Next variant">›</button></footer>
 <script>
@@ -219,8 +224,9 @@ var S = (location.pathname.match(/^\\/m\\/([A-Za-z0-9_-]+)/) || [])[1];
 var API = '/api/s/' + S;
 var TASK = new URLSearchParams(location.search).get('task');
 var SRC = 'ph-' + Math.random().toString(36).slice(2, 8);
-var list = [], cur = -1, pendingFocus = null;
+var list = [], cur = -1, pendingFocus = null, es = null, TASKS = [];
 var fr = document.getElementById('fr'), nm = document.getElementById('nm'), ct = document.getElementById('ct');
+var taskSel = document.getElementById('taskSel');
 
 function show(i, push) {
   if (!list.length) return;
@@ -260,20 +266,60 @@ function load() {
 document.getElementById('prev').addEventListener('click', function () { show(cur - 1, true); });
 document.getElementById('next').addEventListener('click', function () { show(cur + 1, true); });
 
+function fillTasks() {
+  taskSel.innerHTML = '';
+  TASKS.forEach(function (t) {
+    var o = document.createElement('option');
+    o.value = t.slug; o.textContent = t.title;
+    taskSel.appendChild(o);
+  });
+  taskSel.value = TASK;
+}
+function attach() {
+  if (es) es.close();
+  es = new EventSource(API + '/events?task=' + TASK);
+  es.onmessage = function (ev) {
+    var msg; try { msg = JSON.parse(ev.data); } catch (e) { return; }
+    if (msg.kind === 'focus' && msg.src !== SRC) {
+      var i = idx(msg.variant);
+      if (i >= 0) show(i, false); else pendingFocus = msg.variant;
+    } else if (msg.kind === 'task') {
+      if (msg.src !== SRC && msg.task && msg.task !== TASK) switchTask(msg.task, false);
+    } else if (msg.kind === 'change') load();
+  };
+}
+function knownTask(slug) {
+  for (var i = 0; i < TASKS.length; i++) if (TASKS[i].slug === slug) return true;
+  return false;
+}
+function switchTask(slug, push) {
+  if (slug === TASK) return;
+  TASK = slug;
+  list = []; cur = -1; pendingFocus = null;
+  fr.removeAttribute('src');
+  nm.textContent = 'loading…'; ct.textContent = '';
+  history.replaceState(null, '', '/m/' + S + '?task=' + TASK);
+  // a task born after this page loaded is missing from the switcher — refetch
+  var ready = knownTask(slug)
+    ? Promise.resolve()
+    : fetch(API + '/tasks').then(function (r) { return r.json(); }).then(function (info) { TASKS = info.tasks || []; });
+  ready.then(function () { fillTasks(); return load(); }).then(attach);
+  if (push) fetch(API + '/task', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task: slug, src: SRC })
+  }).catch(function () {});
+}
+taskSel.addEventListener('change', function () { switchTask(taskSel.value, true); });
+
 fetch(API + '/tasks').then(function (r) { return r.json(); }).then(function (info) {
-  if (!TASK && info.tasks && info.tasks.length) TASK = info.tasks[0].slug;
+  TASKS = info.tasks || [];
+  // start where the board is; the URL's task and the newest task are fallbacks
+  if (!TASK || !knownTask(TASK)) TASK = info.boardTask || (TASKS.length ? TASKS[0].slug : null);
   if (!TASK) { nm.textContent = 'no tasks yet'; return; }
   document.title = 'Composer — ' + S;
-  load().then(function () {
-    var es = new EventSource(API + '/events?task=' + TASK);
-    es.onmessage = function (ev) {
-      var msg; try { msg = JSON.parse(ev.data); } catch (e) { return; }
-      if (msg.kind === 'focus' && msg.src !== SRC) {
-        var i = idx(msg.variant);
-        if (i >= 0) show(i, false); else pendingFocus = msg.variant;
-      } else if (msg.kind === 'change') load();
-    };
-  });
+  fillTasks();
+  history.replaceState(null, '', '/m/' + S + '?task=' + TASK);
+  load().then(attach);
 }).catch(function () { nm.textContent = 'unknown session'; });
 <\/script></body></html>`;
 }
@@ -410,7 +456,21 @@ const server = http.createServer(async (req, res) => {
         live: isLive(name), tasks: loadTasks(name),
         // where a phone on the same network reaches this session's remote
         phone: `http://${lanIP()}:${PORT}/m/${name}`,
+        boardTask: sessionTask.get(name) || null,
       });
+
+    // task switch announcement — broadcast to every SSE client of the session
+    // regardless of which task's channel they sit on, so devices can hop over
+    if (rest === "task" && req.method === "POST") {
+      const b = await readBody(req);
+      const t = b?.task;
+      if (!NAME_RE.test(t || "") || !fs.existsSync(taskPath(name, t)))
+        return json(res, 400, { error: "unknown task" });
+      const src = typeof b?.src === "string" ? b.src.slice(0, 16) : "";
+      sessionTask.set(name, t);
+      for (const g of groups.values()) if (g.name === name) send(g, { kind: "task", task: t, src });
+      return json(res, 200, { ok: true });
+    }
 
     if (rest === "events") {
       const task = url.searchParams.get("task") || "";

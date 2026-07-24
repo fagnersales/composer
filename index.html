@@ -230,17 +230,12 @@
   }
   #qrOverlay[hidden] { display: none; }
   .qr-card {
-    width: 300px; padding: 20px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    padding: 20px; text-align: center;
     background: var(--bg-surface); border: 1px solid var(--border-default);
     border-radius: var(--radius-lg); box-shadow: var(--shadow-pop);
   }
-  .qr-card canvas { border-radius: var(--radius-md); background: #fff; }
-  .qr-card #qrUrl {
-    margin: 12px 0 6px; padding: 6px 8px; border-radius: var(--radius-sm);
-    background: var(--bg-muted); color: var(--text-secondary); cursor: pointer;
-    font-family: var(--font-mono); font-size: 11px; word-break: break-all;
-  }
-  .qr-card p { margin: 0 0 14px; color: var(--text-secondary); font-size: var(--text-xs); line-height: 1.5; }
+  .qr-card canvas { display: block; border-radius: var(--radius-md); background: #fff; }
   .qr-card #qrClose {
     padding: 7px 18px; border: 1px solid var(--border-default); border-radius: var(--radius-full);
     background: var(--bg-surface); color: var(--text-primary); cursor: pointer;
@@ -762,9 +757,7 @@
 
   <div id="qrOverlay" hidden>
     <div class="qr-card">
-      <canvas id="qrCanvas" width="228" height="228"></canvas>
-      <div id="qrUrl" title="Tap to copy"></div>
-      <p>Scan from a phone on the same network. Swiping there moves this board; selecting here moves the phone.</p>
+      <canvas id="qrCanvas"></canvas>
       <button id="qrClose" type="button">Close</button>
     </div>
   </div>
@@ -2217,36 +2210,32 @@ function qrMatrix(text) {
 /* ---------- pair overlay ---------- */
 var qrOverlay = document.getElementById('qrOverlay');
 var qrCanvas = document.getElementById('qrCanvas');
-var qrUrlEl = document.getElementById('qrUrl');
 function openPhonePair() {
-  if (!PHONE_BASE || !TASK) { toast('No task to pair yet'); return; }
-  var url = PHONE_BASE + '?task=' + TASK;
+  if (!PHONE_BASE) { toast('No session to pair yet'); return; }
+  // no task in the url — the phone follows whatever task the board is on
+  var url = PHONE_BASE;
   trace('phone:pair', { url: url });
-  qrUrlEl.textContent = url;
-  var mtx = qrMatrix(url), ctx = qrCanvas.getContext('2d');
-  ctx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
-  if (mtx) {
-    var quiet = 4, cells = mtx.length + quiet * 2;
-    var px = Math.floor(qrCanvas.width / cells);
-    var off = Math.floor((qrCanvas.width - px * cells) / 2) + quiet * px;
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, qrCanvas.width, qrCanvas.height);
-    ctx.fillStyle = '#000';
-    mtx.forEach(function (row, y) {
-      row.forEach(function (dark, x) {
-        if (dark) ctx.fillRect(off + x * px, off + y * px, px, px);
-      });
+  var mtx = qrMatrix(url);
+  if (!mtx) { toast('Pairing link too long for a QR'); return; }
+  // canvas sized to exactly quiet zone + modules, so the code sits centered
+  var quiet = 4, cells = mtx.length + quiet * 2;
+  var px = Math.max(3, Math.floor(232 / cells));
+  qrCanvas.width = qrCanvas.height = cells * px;
+  qrCanvas.style.width = qrCanvas.style.height = cells * px + 'px';
+  var ctx = qrCanvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, qrCanvas.width, qrCanvas.height);
+  ctx.fillStyle = '#000';
+  mtx.forEach(function (row, y) {
+    row.forEach(function (dark, x) {
+      if (dark) ctx.fillRect((quiet + x) * px, (quiet + y) * px, px, px);
     });
-  }
-  qrCanvas.style.display = mtx ? 'block' : 'none';
+  });
   qrOverlay.hidden = false;
 }
 document.getElementById('tbPhone').addEventListener('click', openPhonePair);
 document.getElementById('qrClose').addEventListener('click', function () { qrOverlay.hidden = true; });
 qrOverlay.addEventListener('mousedown', function (e) { if (e.target === qrOverlay) qrOverlay.hidden = true; });
-qrUrlEl.addEventListener('click', function () {
-  if (navigator.clipboard) navigator.clipboard.writeText(qrUrlEl.textContent).then(function () { toast('Link copied'); });
-});
 /* ---------- the composer's two states ----------
    Resting is a one-line chip; composing is a textarea. There is no continuum
    between them: the moment the caret would run out of room the panel and field
@@ -3027,6 +3016,11 @@ fetch(API + '/tasks').then(function (r) {
     theme: document.documentElement.getAttribute('data-theme'),
     savedPositions: Object.keys(savedPos).length, live: !!info.live
   });
+  // tell paired phones which task this board is on — they hop over
+  fetch(API + '/task', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task: TASK, src: TRACE_ID })
+  }).catch(function () {});
   // requests first: a cold load must know the open slots before it places the
   // children that already filled some of them
   refreshRequests().then(function () { return refreshVariants(false); }).then(refreshRequests);
@@ -3036,6 +3030,13 @@ fetch(API + '/tasks').then(function (r) {
     try { msg = JSON.parse(ev.data); } catch (e) { return; }
     if (msg.kind === 'status') setLive(!!msg.live);
     else if (msg.kind === 'focus') { if (msg.src !== TRACE_ID) applyRemoteFocus(msg.variant); }
+    else if (msg.kind === 'task') {
+      // the phone switched task — follow it (same navigation as the switcher)
+      if (msg.src !== TRACE_ID && msg.task && msg.task !== TASK) {
+        trace('task:remote', { task: msg.task });
+        location.href = '/b/' + SESSION + '?task=' + msg.task;
+      }
+    }
     else { trace('sse:change'); refreshVariants(true).then(refreshRequests); }
   };
   es.onerror = function () { trace('sse:error'); liveEl.textContent = '○ reconnecting…'; liveEl.classList.add('off'); };

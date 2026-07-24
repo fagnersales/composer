@@ -53,6 +53,11 @@ fetch(API + '/tasks').then(function (r) {
     theme: document.documentElement.getAttribute('data-theme'),
     savedPositions: Object.keys(savedPos).length, live: !!info.live
   });
+  // tell paired phones which task this board is on — they hop over
+  fetch(API + '/task', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task: TASK, src: TRACE_ID })
+  }).catch(function () {});
   // requests first: a cold load must know the open slots before it places the
   // children that already filled some of them
   refreshRequests().then(function () { return refreshVariants(false); }).then(refreshRequests);
@@ -62,6 +67,13 @@ fetch(API + '/tasks').then(function (r) {
     try { msg = JSON.parse(ev.data); } catch (e) { return; }
     if (msg.kind === 'status') setLive(!!msg.live);
     else if (msg.kind === 'focus') { if (msg.src !== TRACE_ID) applyRemoteFocus(msg.variant); }
+    else if (msg.kind === 'task') {
+      // the phone switched task — follow it (same navigation as the switcher)
+      if (msg.src !== TRACE_ID && msg.task && msg.task !== TASK) {
+        trace('task:remote', { task: msg.task });
+        location.href = '/b/' + SESSION + '?task=' + msg.task;
+      }
+    }
     else { trace('sse:change'); refreshVariants(true).then(refreshRequests); }
   };
   es.onerror = function () { trace('sse:error'); liveEl.textContent = '○ reconnecting…'; liveEl.classList.add('off'); };
