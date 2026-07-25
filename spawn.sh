@@ -23,6 +23,7 @@
 # treats "cancelled" as terminal at read time) but we skip it anyway.
 set -u
 
+SELF_DIR=$(cd "$(dirname "$0")" && pwd)
 TASK_DIR=$(cd "$1" && pwd) || exit 1
 REQ_ID=$2
 MODEL=$3
@@ -36,7 +37,7 @@ mkdir -p "$BUILD"
 
 case "$MODEL" in
   sonnet) MODEL=claude-sonnet-5 ;;
-  opus)   MODEL=claude-opus-4-8 ;;
+  opus)   MODEL=claude-opus-5 ;;
   fable)  MODEL=claude-fable-5 ;;
 esac
 
@@ -59,6 +60,7 @@ is_cancelled() {
 run_one() { # prompt-file slot
   claude -p "$(cat "$1")" --model "$MODEL" \
     --allowedTools "$ALLOWED_TOOLS" \
+    --output-format json \
     > "$BUILD/$2.log" 2>&1 &
   local cpid=$!
   echo "$cpid" >> "$BUILD/pids"
@@ -68,6 +70,11 @@ run_one() { # prompt-file slot
   local code=$?
   kill "$wpid" 2>/dev/null
   echo "$code" > "$BUILD/$2.exit"
+  # effort badge: the JSON result carries duration + token usage; stamp it
+  # into the variant's meta (slot name == variant filename by convention).
+  # Best-effort — stamp.mjs exits 0 quietly when there's nothing to stamp.
+  [ "$code" -eq 0 ] && [ -f "$TASK_DIR/variants/$2.html" ] &&
+    node "$SELF_DIR/stamp.mjs" "$BUILD/$2.log" "$TASK_DIR/variants/$2.html"
 }
 
 : > "$BUILD/pids"

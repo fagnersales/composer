@@ -87,6 +87,8 @@ function loadVariants(name, task) {
         // a combine names every parent it was mixed from; parent stays the primary one
         parents: Array.isArray(meta.parents) ? meta.parents.filter((p) => typeof p === "string") : null,
         url: meta.url || null, // url variants render a live route instead of the file body
+        commit: meta.commit || null, // worktree variants: the git SHA holding this variant's real code
+        stats: meta.stats || null, // builder effort ({ms,in,out}) stamped by spawn.sh
         // min: a copied / restored tree keeps its mtimes but is born now
         ts: new Date(Math.min(st.birthtimeMs || Infinity, st.mtimeMs)).toISOString(),
         html,
@@ -411,6 +413,20 @@ const server = http.createServer(async (req, res) => {
     }
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
     return res.end(html);
+  }
+
+  // capture assets living next to variant files (worktree mode: NN-slug.png /
+  // .webm beside NN-slug.html) — the board injects a <base> pointing here so
+  // the variant's relative srcs resolve. No "/" can hide in the filename
+  // group, so traversal is impossible.
+  if ((m = p.match(/^\/v\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/([A-Za-z0-9._-]+\.(png|jpe?g|gif|webp|svg|webm|mp4))$/))) {
+    const [, name, task, file, ext] = m;
+    if (!registry[name]) { res.writeHead(404); return res.end("unknown session"); }
+    const fp = path.join(taskPath(name, task), "variants", file);
+    if (!fs.existsSync(fp)) { res.writeHead(404); return res.end("not found"); }
+    const mime = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml", webm: "video/webm", mp4: "video/mp4" }[ext.toLowerCase()];
+    res.writeHead(200, { "Content-Type": mime, "Cache-Control": "no-cache" });
+    return fs.createReadStream(fp).pipe(res);
   }
 
   // board UI for a session

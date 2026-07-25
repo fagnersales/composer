@@ -258,7 +258,7 @@ function createNodeEl(n) {
     '<div class="preview"><div class="scaler"><iframe sandbox="allow-scripts" scrolling="no"></iframe></div>' +
     '<div class="build"><div class="spin"></div><span>building…</span><span class="req"></span>' +
     '<button class="cancel" type="button" title="Cancel this iterate request">Cancel</button></div></div>' +
-    '<div class="foot"><span class="ttl"><span class="crown">♔</span><span class="nm"></span></span><span class="mdl"><i></i><span class="mt"></span></span></div>';
+    '<div class="foot"><span class="ttl"><span class="crown">♔</span><span class="nm"></span></span><span class="fx"></span><span class="mdl"><i></i><span class="mt"></span></span></div>';
   d.addEventListener('mousedown', function (e) {
     if (e.button !== 0) return;
     e.stopPropagation();
@@ -280,7 +280,7 @@ function createNodeEl(n) {
   if (!n.building) {
     var ifr = d.querySelector('iframe');
     if (n.url) { ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin'); ifr.src = n.url; }
-    else ifr.srcdoc = n.html;
+    else ifr.srcdoc = withBase(n.html);
   }
   if (n.building && n.reqText) d.querySelector('.req').textContent = '“' + n.reqText + '”';
   if (!n.building) {
@@ -314,6 +314,9 @@ function updateNodeVisual(n) {
   d.querySelector('.nm').textContent = n.name;
   d.querySelector('.mt').textContent = n.model;
   d.querySelector('.mdl i').style.background = modelColor(n.model);
+  d.querySelector('.fx').textContent = n.stats
+    ? fmtDur(n.stats.ms) + ' · ' + fmtTok(n.stats.in) + ' in · ' + fmtTok(n.stats.out) + ' out'
+    : '';
   d.classList.toggle('rejected', isRejected(n.id));
 }
 

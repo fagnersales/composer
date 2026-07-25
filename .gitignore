@@ -1,3 +1,5 @@
 .playwright-mcp/
 nohup.out
 .composer/
+node_modules/
+sessions.json

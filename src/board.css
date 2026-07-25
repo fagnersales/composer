@@ -119,6 +119,7 @@
   .node .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; }
   .node .ttl { display: flex; align-items: center; gap: 5px; min-width: 0; }
   .node .nm { font-size: 12.5px; color: var(--text-primary); font-weight: var(--weight-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node .fx { flex: none; font-size: 10px; color: var(--text-tertiary); white-space: nowrap; }
   .node .mdl { display: flex; align-items: center; gap: 5px; flex: none; font-size: 10.5px; color: var(--text-secondary); }
   .node .mdl i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
   /* the crown rides the title, not the preview — nothing overlaps the variant */
@@ -155,6 +156,7 @@
   }
   #live { color: var(--text-primary); font-weight: var(--weight-medium); }
   #live.off { color: var(--text-tertiary); }
+  #effort { color: var(--text-tertiary); }
 
   /* toolbar */
   #toolbar { position: fixed; left: 16px; bottom: 16px; z-index: 20; display: flex; gap: 6px; }

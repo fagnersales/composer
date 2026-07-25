@@ -1,0 +1,22 @@
+{
+  "name": "composer",
+  "version": "1.0.0",
+  "description": "Infinite-canvas board for the /composer skill: compare, iterate and pick UI variants built by a fleet of agents.",
+  "scripts": {
+    "start": "node server.mjs",
+    "build": "node build.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fagnersales/composer.git"
+  },
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/fagnersales/composer/issues"
+  },
+  "homepage": "https://github.com/fagnersales/composer#readme",
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}

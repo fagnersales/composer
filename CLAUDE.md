@@ -5,8 +5,15 @@ into the current project's `.composer/<task>/` folder; the user
 compares them on an infinite pan/zoom canvas, iterates new ones from a chosen
 parent, and picks a winner — all from the browser, no chat round-trip.
 
-This repo is the **tool only** (`server.mjs` + `index.html`, zero deps,
-"Monochrome" kit from claude.ai/design). `index.html` is BUILT — edit the
+This repo is the **tool only** (`server.mjs` + `index.html` +
+`capture.mjs`, "Monochrome" kit from claude.ai/design). The `/composer`
+skill's canonical home is `skills/composer/SKILL.md` **in this repo** —
+`~/.claude/skills/composer` is a symlink to it; edit it here, never a
+copy elsewhere. The skill locates this repo by resolving that symlink
+(`$HUB`), so it works wherever the repo is cloned. The hub itself is
+zero-dep; `capture.mjs` (headless screenshot/record/snapshot helper for
+builder agents — one Chromium per invocation so parallel builders never
+share a browser) is the sole reason `node_modules` exists (playwright). `index.html` is BUILT — edit the
 pieces in `src/` and run `node build.mjs`, which concatenates them back
 into the single self-contained `index.html`; commit both. Never hand-edit
 `index.html`. Project data never lives here —

@@ -126,6 +126,7 @@
   .node .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; }
   .node .ttl { display: flex; align-items: center; gap: 5px; min-width: 0; }
   .node .nm { font-size: 12.5px; color: var(--text-primary); font-weight: var(--weight-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node .fx { flex: none; font-size: 10px; color: var(--text-tertiary); white-space: nowrap; }
   .node .mdl { display: flex; align-items: center; gap: 5px; flex: none; font-size: 10.5px; color: var(--text-secondary); }
   .node .mdl i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
   /* the crown rides the title, not the preview — nothing overlaps the variant */
@@ -162,6 +163,7 @@
   }
   #live { color: var(--text-primary); font-weight: var(--weight-medium); }
   #live.off { color: var(--text-tertiary); }
+  #effort { color: var(--text-tertiary); }
 
   /* toolbar */
   #toolbar { position: fixed; left: 16px; bottom: 16px; z-index: 20; display: flex; gap: 6px; }
@@ -753,7 +755,7 @@
   </div>
 
   <div id="hud">
-    <div><b><a href="/" title="All sessions">Composer</a></b> · <span id="sessName"></span> · <select id="taskSel" title="Switch task"></select> · <span id="live">○ connecting…</span></div>
+    <div><b><a href="/" title="All sessions">Composer</a></b> · <span id="sessName"></span> · <select id="taskSel" title="Switch task"></select> · <span id="live">○ connecting…</span> <span id="effort" title="builder effort: Σ time (wall clock) · cards · fresh-in / generated tokens"></span></div>
   </div>
 
   <div id="toolbar">
@@ -860,8 +862,11 @@
           <button class="insp-ico" id="ispFull" title="Fullscreen ( F )">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg>
           </button>
-          <button class="insp-ico" id="ispShot" title="Screenshot to clipboard">
+          <button class="insp-ico" id="ispShot" title="Screenshot (saves a PNG)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          </button>
+          <button class="insp-ico" id="ispVid" title="Download video" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg>
           </button>
           <button class="insp-ico" id="ispPause" title="Pause">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 5v14M15 5v14"/></svg>
@@ -975,6 +980,17 @@ function selPrimary() {
   return s.length ? s[s.length - 1] : null;
 }
 function screenToWorld(sx, sy) { return { x: (sx - cam.x) / cam.scale, y: (sy - cam.y) / cam.scale }; }
+/* effort formatting: 640000 → "10m40s", 259772 → "260k" */
+function fmtDur(ms) {
+  var s = Math.round(ms / 1000);
+  var m = Math.floor(s / 60);
+  s = s % 60;
+  return m ? m + 'm' + (s < 10 ? '0' : '') + s + 's' : s + 's';
+}
+function fmtTok(n) {
+  return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'k' : '' + n;
+}
+
 function modelColor(m) {
   if (/opus/.test(m)) return '#e0aa5a';
   if (/sonnet/.test(m)) return '#7c9cff';
@@ -1094,6 +1110,16 @@ function traceLayout(why) {
   }, 400);
 }
 
+/* srcdoc documents have no base URL, so a variant's relative srcs (worktree
+   mode keeps NN-slug.png / .webm next to NN-slug.html) would 404 — inject a
+   <base> aimed at the server's /v/ asset route. Inside <head> when the file
+   has one; prepended otherwise (leading metadata lands in the implied head). */
+function withBase(html) {
+  var base = '<base href="/v/' + SESSION + '/' + TASK + '/">';
+  var m = html.match(/<head[^>]*>/i);
+  return m ? html.replace(m[0], m[0] + base) : base + html;
+}
+
 /* inject pause listener before </body>; script tags split so no literal close-tag hits the outer parser */
 function withPause(html) {
   var scr = '<scr' + 'ipt>(function(){var s=document.createElement("style");' +
@@ -1101,7 +1127,36 @@ function withPause(html) {
     'window.addEventListener("message",function(e){if(e.data==="pause"){if(!s.parentNode)document.documentElement.appendChild(s)}' +
     'else if(e.data==="play"){if(s.parentNode)s.parentNode.removeChild(s)}});' +
     'window.addEventListener("keydown",function(e){if(e.key==="Escape"||(e.key&&e.key.indexOf("Arrow")===0)){' +
-    'e.preventDefault();parent.postMessage({composerKey:e.key},"*")}})})();<\/scr' + 'ipt>';
+    'e.preventDefault();parent.postMessage({composerKey:e.key},"*")}});' +
+    /* "shot": rasterize this document's LIVE DOM (scripts have run, state is
+       current) via SVG foreignObject → canvas → PNG blob back to the board.
+       Runs in here because the sandboxed frame's pixels are unreachable from
+       the parent — the page can only screenshot itself. */
+    'window.addEventListener("message",function(e){if(e.data!=="shot")return;' +
+    'var fail=function(){parent.postMessage({composerShotFail:1},"*")};' +
+    'try{var w=innerWidth,h=innerHeight,d=document,clone=d.documentElement.cloneNode(true);' +
+    // live form state and canvas pixels don't survive cloneNode — copy them over
+    'var a=d.querySelectorAll("input,textarea,select"),b=clone.querySelectorAll("input,textarea,select");' +
+    'for(var i=0;i<a.length;i++){var el=a[i],cl=b[i];if(!cl)continue;' +
+    'if(el.tagName==="TEXTAREA")cl.textContent=el.value;' +
+    'else if(el.tagName==="SELECT"){for(var j=0;j<el.options.length;j++){if(el.options[j].selected)cl.options[j].setAttribute("selected","");else cl.options[j].removeAttribute("selected")}}' +
+    'else{cl.setAttribute("value",el.value);if(el.checked)cl.setAttribute("checked","");else cl.removeAttribute("checked")}}' +
+    'var cv=d.querySelectorAll("canvas"),cw=clone.querySelectorAll("canvas");' +
+    'for(i=0;i<cv.length;i++){if(!cw[i])continue;var im=d.createElement("img");' +
+    'try{im.src=cv[i].toDataURL()}catch(_){}' +
+    'im.className=cv[i].className;' +
+    'im.setAttribute("style",(cv[i].getAttribute("style")||"")+";width:"+cv[i].offsetWidth+"px;height:"+cv[i].offsetHeight+"px");' +
+    'cw[i].parentNode.replaceChild(im,cw[i])}' +
+    'var xml=new XMLSerializer().serializeToString(clone);' +
+    'var svg="<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\""+w+"\\" height=\\""+h+"\\"><foreignObject width=\\"100%\\" height=\\"100%\\">"+xml+"</foreignObject></svg>";' +
+    'var img=new Image();' +
+    'img.onload=function(){try{var k=2,c=d.createElement("canvas");c.width=w*k;c.height=h*k;' +
+    'var x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);' +
+    'x.scale(k,k);x.drawImage(img,0,0);' +
+    'c.toBlob(function(bl){if(bl)parent.postMessage({composerShot:bl},"*");else fail()},"image/png")}catch(_){fail()}};' +
+    'img.onerror=fail;' +
+    'img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg)}catch(_){fail()}})' +
+    '})();<\/scr' + 'ipt>';
   return html.indexOf('</body>') !== -1 ? html.replace('</body>', scr + '</body>') : html + scr;
 }
 
@@ -1365,7 +1420,7 @@ function createNodeEl(n) {
     '<div class="preview"><div class="scaler"><iframe sandbox="allow-scripts" scrolling="no"></iframe></div>' +
     '<div class="build"><div class="spin"></div><span>building…</span><span class="req"></span>' +
     '<button class="cancel" type="button" title="Cancel this iterate request">Cancel</button></div></div>' +
-    '<div class="foot"><span class="ttl"><span class="crown">♔</span><span class="nm"></span></span><span class="mdl"><i></i><span class="mt"></span></span></div>';
+    '<div class="foot"><span class="ttl"><span class="crown">♔</span><span class="nm"></span></span><span class="fx"></span><span class="mdl"><i></i><span class="mt"></span></span></div>';
   d.addEventListener('mousedown', function (e) {
     if (e.button !== 0) return;
     e.stopPropagation();
@@ -1387,7 +1442,7 @@ function createNodeEl(n) {
   if (!n.building) {
     var ifr = d.querySelector('iframe');
     if (n.url) { ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin'); ifr.src = n.url; }
-    else ifr.srcdoc = n.html;
+    else ifr.srcdoc = withBase(n.html);
   }
   if (n.building && n.reqText) d.querySelector('.req').textContent = '“' + n.reqText + '”';
   if (!n.building) {
@@ -1421,6 +1476,9 @@ function updateNodeVisual(n) {
   d.querySelector('.nm').textContent = n.name;
   d.querySelector('.mt').textContent = n.model;
   d.querySelector('.mdl i').style.background = modelColor(n.model);
+  d.querySelector('.fx').textContent = n.stats
+    ? fmtDur(n.stats.ms) + ' · ' + fmtTok(n.stats.in) + ' in · ' + fmtTok(n.stats.out) + ' out'
+    : '';
   d.classList.toggle('rejected', isRejected(n.id));
 }
 
@@ -1590,6 +1648,9 @@ function refreshVariants(announce) {
       if (existing) {
         existing.parentId = parentId;
         if (extra.length) existing.extraParents = extra;
+        // stats land in a second write (spawn.sh stamps after the builder
+        // exits), so an already-seen node can still gain its effort badge
+        existing.stats = v.stats || null;
         return;
       }
       var pos = savedPos[v.id], how = 'saved';
@@ -1612,6 +1673,7 @@ function refreshVariants(announce) {
         id: v.id, parentId: parentId, ts: v.ts,
         extraParents: extra.length ? extra : (pos.extraParents || []),
         name: v.name, model: v.model, description: v.description, html: v.html, url: v.url,
+        commit: v.commit || null, stats: v.stats || null,
         x: pos.x, y: pos.y, building: false
       };
       state.nodes.push(n);
@@ -1628,6 +1690,8 @@ function refreshVariants(announce) {
     });
     renderEdges();
     renderMinimap();
+    state.nodes.forEach(updateNodeVisual); // repaint late-arriving effort badges
+    paintEffort();
     if (added > 0) traceLayout('landed');
     if (!didFit && state.nodes.length) { didFit = true; fitView(); }
     if (announce && added > 0) toast(added + ' new variant' + (added > 1 ? 's' : '') + ' arrived ✨');
@@ -1802,6 +1866,34 @@ cmpReject.addEventListener('click', function (e) {
   if (sel.length === 1) toggleReject(sel[0].id);
 });
 
+
+/* ---------- effort tally ---------- */
+/* header line: Σ builder time (parallel-aware wall clock in parens) · cards
+   · tokens. Wall clock = union of each stamped builder's [ts-ms, ts]
+   interval, so overlapping builders only count once. */
+function paintEffort() {
+  var el = document.getElementById('effort');
+  if (!el) return;
+  var iv = [], ms = 0, tin = 0, tout = 0, count = 0;
+  state.nodes.forEach(function (nd) {
+    if (!nd.stats || !nd.stats.ms) return;
+    count++;
+    ms += nd.stats.ms; tin += nd.stats.in || 0; tout += nd.stats.out || 0;
+    var end = Date.parse(nd.ts) || 0;
+    if (end) iv.push([end - nd.stats.ms, end]);
+  });
+  if (!count) { el.textContent = ''; return; }
+  iv.sort(function (a, b) { return a[0] - b[0]; });
+  var wall = 0, cur = null;
+  iv.forEach(function (s) {
+    if (!cur || s[0] > cur[1]) { if (cur) wall += cur[1] - cur[0]; cur = s.slice(); }
+    else if (s[1] > cur[1]) cur[1] = s[1];
+  });
+  if (cur) wall += cur[1] - cur[0];
+  el.textContent = '· ' + fmtDur(ms) + ' (' + fmtDur(wall) + ') · ' +
+    count + ' card' + (count > 1 ? 's' : '') + ' · ' +
+    fmtTok(tin) + ' in · ' + fmtTok(tout) + ' out';
+}
 /* ---------- inspect ----------
    Three states of one glass object: Away (nothing drawn but the framed
    variant), Gathered (the island bar + edge chevrons wake on approach) and
@@ -1842,6 +1934,18 @@ function ispPaintPick() {
 function buildPickPrompt(n) {
   var t = null;
   for (var i = 0; i < TASKS.length; i++) if (TASKS[i].slug === TASK) t = TASKS[i];
+  // a worktree variant's code already exists as a real commit — the hand-off
+  // is a cherry-pick, not a rebuild-from-mockup
+  if (n.commit) {
+    return 'Land a UI design that was chosen on a Composer board into this project.\n\n' +
+      'Task: "' + (t ? t.title : TASK) + '"\n' +
+      'Winning variant: "' + n.name + '"' + (n.description ? ' — ' + n.description : '') + '\n\n' +
+      'The winning code was built in this repository and committed as ' + n.commit + ' (kept alive under refs/composer/, off any branch).\n\n' +
+      'Start from `git show ' + n.commit + '` to see the diff, then land it on the current branch — `git cherry-pick ' + n.commit + '` if it applies cleanly, otherwise apply the diff by hand. It was built as a demo variant: review it for demo shortcuts (partially wired interactions, trimmed data) and finish those against the real data and conventions before considering it done.\n\n' +
+      'The variant\'s capture (screenshot/recording) is at ' +
+      (DIR ? DIR + '/' + TASK + '/variants/' : '.composer/' + TASK + '/variants/') +
+      ' if you want to see what was approved.';
+  }
   var where = n.url
     ? 'The chosen design runs live at ' + n.url + ' (a route on this project\'s dev server).'
     : 'The chosen design is a self-contained HTML mockup at:\n' +
@@ -1910,13 +2014,28 @@ function buildInspFrame(n) {
     ispPause.disabled = true;
   } else {
     f.setAttribute('sandbox', 'allow-scripts');
-    f.srcdoc = withPause(n.html);
+    f.srcdoc = withPause(withBase(n.html));
     ispPause.disabled = false;
   }
   ispFrame.appendChild(f);
   inspIframe = f;
   insPausedState = false;
   ispRenderPause();
+  // recording cards (worktree mode) embed a video next to the file — offer it
+  var vm = !n.url && n.html ? n.html.match(/<video[^>]*\ssrc="([^"]+)"/i) : null;
+  ispVideoSrc = vm ? vm[1] : null;
+  document.getElementById('ispVid').style.display = ispVideoSrc ? '' : 'none';
+}
+var ispVideoSrc = null;
+function downloadInspVideo() {
+  if (!ispVideoSrc || state.inspectId == null) return;
+  trace('inspect:video-download', { id: state.inspectId });
+  var a = document.createElement('a');
+  // relative srcs live next to the variant file, served by the /v/ asset route
+  a.href = /^[a-z]+:|^\//i.test(ispVideoSrc) ? ispVideoSrc : '/v/' + SESSION + '/' + TASK + '/' + ispVideoSrc;
+  a.download = SESSION + '-' + ispVideoSrc.split('/').pop();
+  a.click();
+  toast('Video downloading…');
 }
 /* the frame is CSS-sized off its aspect ratio — setting it is two custom props */
 function setAspect(a) {
@@ -2001,18 +2120,53 @@ function togglePause() {
   insPausedState = !insPausedState;
   ispRenderPause();
 }
-/* screenshot the inspected variant to the clipboard. The iframe is sandboxed
-   (no allow-same-origin), so its pixels are unreachable from here — instead we
-   tab-capture (preferCurrentTab skips the picker's surface hunt), crop the
-   frame's rect out of one video frame, and hand the PNG to the clipboard.
-   Chromium-only; the catch covers both "denied" and "unsupported". */
-var shotBusy = false;
+/* screenshot the inspected variant to the clipboard. The frame's pixels are
+   unreachable from here (sandboxed, no allow-same-origin), so the withPause
+   hook injected into every srcdoc variant does the shot ITSELF: on a "shot"
+   message it rasterizes its live DOM and posts the PNG back — no picker, no
+   prompt. Only url variants (live dev-server routes, nothing injected there)
+   and hook failures fall back to the tab-capture path below. */
+var shotBusy = false, shotWait = null;
 function captureVariant() {
   if (shotBusy || state.inspectId == null || !inspIframe) return;
+  var n = byId(state.inspectId);
+  trace('inspect:screenshot', { id: state.inspectId, via: n && n.url ? 'tab' : 'frame' });
+  if (n && !n.url) {
+    shotBusy = true;
+    // no reply (hook predates this build / page replaced it) → picker fallback
+    shotWait = setTimeout(function () { shotWait = null; shotBusy = false; captureTab(); }, 3000);
+    inspIframe.contentWindow.postMessage('shot', '*');
+  } else {
+    captureTab();
+  }
+}
+/* the frame answered — a blob means a finished PNG, null means it failed */
+function shotArrived(blob) {
+  if (!shotBusy || shotWait == null) return;
+  clearTimeout(shotWait); shotWait = null; shotBusy = false;
+  if (blob) deliverShot(blob);
+  else { trace('inspect:screenshot-fallback'); captureTab(); }
+}
+function deliverShot(blob) {
+  // save first — that's the point of the button; clipboard is a best-effort bonus
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = SESSION + '-' + (state.inspectId || 'variant').replace(/\.html$/, '') + '.png';
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+    toast('Screenshot saved (and copied)');
+  }, function () {
+    toast('Screenshot saved');
+  });
+}
+/* fallback: tab-capture (preferCurrentTab pre-selects this tab), crop the
+   frame's rect out of one video frame. Chromium-only. */
+function captureTab() {
+  if (shotBusy) return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
     toast('Screenshots need a Chromium browser'); return;
   }
-  trace('inspect:screenshot', { id: state.inspectId });
   shotBusy = true;
   var stream, video = document.createElement('video');
   navigator.mediaDevices.getDisplayMedia({
@@ -2039,17 +2193,7 @@ function captureVariant() {
   }).then(function (blob) {
     endShot(stream);
     if (!blob) throw new Error('no frame');
-    return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
-      toast('Screenshot copied to clipboard');
-    }, function () {
-      // clipboard refused (focus/permission) — a download still delivers it
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = SESSION + '-' + (state.inspectId || 'variant').replace(/\.html$/, '') + '.png';
-      a.click();
-      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
-      toast('Clipboard refused — downloaded the screenshot instead');
-    });
+    deliverShot(blob);
   }).catch(function (e) {
     endShot(stream);
     trace('inspect:screenshot-fail', { msg: String(e).slice(0, 120) });
@@ -2956,6 +3100,7 @@ document.getElementById('ispIterate').addEventListener('click', function () {
 });
 document.getElementById('ispFull').addEventListener('click', toggleFullscreen);
 document.getElementById('ispShot').addEventListener('click', captureVariant);
+document.getElementById('ispVid').addEventListener('click', downloadInspVideo);
 ispPause.addEventListener('click', togglePause);
 ispRestart.addEventListener('click', function () { var n = byId(state.inspectId); if (n) buildInspFrame(n); });
 ispPick.addEventListener('click', function () { if (state.inspectId != null) setWinner(state.inspectId); });
@@ -3078,6 +3223,9 @@ window.addEventListener('resize', function () {
 /* keys pressed inside an inspected variant page are forwarded up by the
    withPause-injected hook, so navigation keeps working with the page focused */
 window.addEventListener('message', function (ev) {
+  // a variant answering the "shot" message with its self-taken PNG (or a fail)
+  if (ev.data && ev.data.composerShot) { shotArrived(ev.data.composerShot); return; }
+  if (ev.data && ev.data.composerShotFail) { shotArrived(null); return; }
   var k = ev.data && ev.data.composerKey;
   if (typeof k !== 'string') return;
   if (k === 'Escape') { if (state.inspectId != null) escAction(); }

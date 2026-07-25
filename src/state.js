@@ -81,6 +81,17 @@ function selPrimary() {
   return s.length ? s[s.length - 1] : null;
 }
 function screenToWorld(sx, sy) { return { x: (sx - cam.x) / cam.scale, y: (sy - cam.y) / cam.scale }; }
+/* effort formatting: 640000 → "10m40s", 259772 → "260k" */
+function fmtDur(ms) {
+  var s = Math.round(ms / 1000);
+  var m = Math.floor(s / 60);
+  s = s % 60;
+  return m ? m + 'm' + (s < 10 ? '0' : '') + s + 's' : s + 's';
+}
+function fmtTok(n) {
+  return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'k' : '' + n;
+}
+
 function modelColor(m) {
   if (/opus/.test(m)) return '#e0aa5a';
   if (/sonnet/.test(m)) return '#7c9cff';
@@ -200,6 +211,16 @@ function traceLayout(why) {
   }, 400);
 }
 
+/* srcdoc documents have no base URL, so a variant's relative srcs (worktree
+   mode keeps NN-slug.png / .webm next to NN-slug.html) would 404 — inject a
+   <base> aimed at the server's /v/ asset route. Inside <head> when the file
+   has one; prepended otherwise (leading metadata lands in the implied head). */
+function withBase(html) {
+  var base = '<base href="/v/' + SESSION + '/' + TASK + '/">';
+  var m = html.match(/<head[^>]*>/i);
+  return m ? html.replace(m[0], m[0] + base) : base + html;
+}
+
 /* inject pause listener before </body>; script tags split so no literal close-tag hits the outer parser */
 function withPause(html) {
   var scr = '<scr' + 'ipt>(function(){var s=document.createElement("style");' +
@@ -207,7 +228,36 @@ function withPause(html) {
     'window.addEventListener("message",function(e){if(e.data==="pause"){if(!s.parentNode)document.documentElement.appendChild(s)}' +
     'else if(e.data==="play"){if(s.parentNode)s.parentNode.removeChild(s)}});' +
     'window.addEventListener("keydown",function(e){if(e.key==="Escape"||(e.key&&e.key.indexOf("Arrow")===0)){' +
-    'e.preventDefault();parent.postMessage({composerKey:e.key},"*")}})})();<\/scr' + 'ipt>';
+    'e.preventDefault();parent.postMessage({composerKey:e.key},"*")}});' +
+    /* "shot": rasterize this document's LIVE DOM (scripts have run, state is
+       current) via SVG foreignObject → canvas → PNG blob back to the board.
+       Runs in here because the sandboxed frame's pixels are unreachable from
+       the parent — the page can only screenshot itself. */
+    'window.addEventListener("message",function(e){if(e.data!=="shot")return;' +
+    'var fail=function(){parent.postMessage({composerShotFail:1},"*")};' +
+    'try{var w=innerWidth,h=innerHeight,d=document,clone=d.documentElement.cloneNode(true);' +
+    // live form state and canvas pixels don't survive cloneNode — copy them over
+    'var a=d.querySelectorAll("input,textarea,select"),b=clone.querySelectorAll("input,textarea,select");' +
+    'for(var i=0;i<a.length;i++){var el=a[i],cl=b[i];if(!cl)continue;' +
+    'if(el.tagName==="TEXTAREA")cl.textContent=el.value;' +
+    'else if(el.tagName==="SELECT"){for(var j=0;j<el.options.length;j++){if(el.options[j].selected)cl.options[j].setAttribute("selected","");else cl.options[j].removeAttribute("selected")}}' +
+    'else{cl.setAttribute("value",el.value);if(el.checked)cl.setAttribute("checked","");else cl.removeAttribute("checked")}}' +
+    'var cv=d.querySelectorAll("canvas"),cw=clone.querySelectorAll("canvas");' +
+    'for(i=0;i<cv.length;i++){if(!cw[i])continue;var im=d.createElement("img");' +
+    'try{im.src=cv[i].toDataURL()}catch(_){}' +
+    'im.className=cv[i].className;' +
+    'im.setAttribute("style",(cv[i].getAttribute("style")||"")+";width:"+cv[i].offsetWidth+"px;height:"+cv[i].offsetHeight+"px");' +
+    'cw[i].parentNode.replaceChild(im,cw[i])}' +
+    'var xml=new XMLSerializer().serializeToString(clone);' +
+    'var svg="<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\""+w+"\\" height=\\""+h+"\\"><foreignObject width=\\"100%\\" height=\\"100%\\">"+xml+"</foreignObject></svg>";' +
+    'var img=new Image();' +
+    'img.onload=function(){try{var k=2,c=d.createElement("canvas");c.width=w*k;c.height=h*k;' +
+    'var x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);' +
+    'x.scale(k,k);x.drawImage(img,0,0);' +
+    'c.toBlob(function(bl){if(bl)parent.postMessage({composerShot:bl},"*");else fail()},"image/png")}catch(_){fail()}};' +
+    'img.onerror=fail;' +
+    'img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg)}catch(_){fail()}})' +
+    '})();<\/scr' + 'ipt>';
   return html.indexOf('</body>') !== -1 ? html.replace('</body>', scr + '</body>') : html + scr;
 }
 

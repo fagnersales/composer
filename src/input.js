@@ -597,6 +597,7 @@ document.getElementById('ispIterate').addEventListener('click', function () {
 });
 document.getElementById('ispFull').addEventListener('click', toggleFullscreen);
 document.getElementById('ispShot').addEventListener('click', captureVariant);
+document.getElementById('ispVid').addEventListener('click', downloadInspVideo);
 ispPause.addEventListener('click', togglePause);
 ispRestart.addEventListener('click', function () { var n = byId(state.inspectId); if (n) buildInspFrame(n); });
 ispPick.addEventListener('click', function () { if (state.inspectId != null) setWinner(state.inspectId); });
@@ -719,6 +720,9 @@ window.addEventListener('resize', function () {
 /* keys pressed inside an inspected variant page are forwarded up by the
    withPause-injected hook, so navigation keeps working with the page focused */
 window.addEventListener('message', function (ev) {
+  // a variant answering the "shot" message with its self-taken PNG (or a fail)
+  if (ev.data && ev.data.composerShot) { shotArrived(ev.data.composerShot); return; }
+  if (ev.data && ev.data.composerShotFail) { shotArrived(null); return; }
   var k = ev.data && ev.data.composerKey;
   if (typeof k !== 'string') return;
   if (k === 'Escape') { if (state.inspectId != null) escAction(); }

@@ -33,6 +33,35 @@ current tasks. Iterate/tweak are **locked while no fleet agent is
 heartbeating** ("fleet offline") so requests can't pile up unheard;
 cancel and pick always work — they only record state. Keyboard: +/- zoom, 0 fit, o organize, Esc close/deselect.
 
+## Get started
+
+Composer is driven by [Claude Code](https://claude.com/claude-code): the
+`/composer` skill (in `skills/composer/`) spawns the builder fleet and
+serves the board's requests. The fastest setup is to let your agent do
+it — paste this into a Claude Code session:
+
+> Set up Composer for me:
+> 1. Clone https://github.com/fagnersales/composer somewhere permanent
+>    (e.g. `~/work/composer`) and `cd` into it.
+> 2. `npm install && npx playwright install chromium` — Playwright and
+>    its browser are only used by `capture.mjs` (the screenshot/record
+>    helper builder agents use).
+> 3. Symlink the skill into my global skills folder so `/composer` works
+>    in every project:
+>    `ln -s "$(pwd)/skills/composer" ~/.claude/skills/composer`
+> 4. Verify: `node server.mjs`, open http://localhost:4600 — the bundled
+>    `demo` session should be listed. Then stop the server.
+>
+> When it's ready, tell me — I'll run `/composer <what to build>` from
+> any project.
+
+The symlink matters: the skill resolves the repo's location by following
+it, and updating Composer stays a plain `git pull`. (If you copy the
+folder instead, the skill will ask where the clone lives.)
+
+Requirements: Node 18+, Claude Code. The hub itself is zero-dependency;
+Playwright is only needed by `capture.mjs`.
+
 ## Run
 
 ```sh
@@ -83,8 +112,18 @@ Each variant is an `.html` file whose first line is a metadata comment:
   the dev server running, and pause/restart doesn't apply to them.
 - No `url` → the file must be fully self-contained (inline CSS/JS, no
   network), rendered via iframe `srcdoc`.
+- `commit` (optional): for variants built in a git worktree of the real
+  project — the SHA holding the variant's actual code (kept alive under a
+  `refs/composer/…` ref). The board's pick hand-off then says "cherry-pick
+  this SHA" instead of "rebuild from the mockup". These variants' bodies are
+  typically just a capture: an `<img>`/`<video>` whose relative src points at
+  a `NN-slug.png` / `.webm` sitting next to the file in `variants/` — the
+  board injects a `<base>` into `srcdoc` so those resolve via the `/v/`
+  asset route.
 
 Any file written into a task's `variants/` appears on that board instantly.
+Non-HTML files in `variants/` (png/jpg/gif/webp/svg/webm/mp4) are served as
+capture assets, not shown as cards.
 
 ## HTTP API
 
@@ -104,6 +143,7 @@ POST /api/s/<name>/t/<task>/focus           {variant, src} — shared "looked at
 POST /api/s/<name>/task                     {task, src} — task switch announcement, broadcast to every SSE client of the session ({"kind":"task"}); board and phone follow each other
 GET  /m/<name>                              phone remote: one variant full-screen, focus AND task synced with the board both ways (?task= optional override)
 GET  /v/<name>/<task>/<file>.html           a single variant as a standalone page (url variants 302 to their dev route, localhost rewritten to the LAN ip)
+GET  /v/<name>/<task>/<file>.<img|video ext> a capture asset from the task's variants/ folder (png/jpg/gif/webp/svg/webm/mp4)
 POST /api/s/<name>/t/<task>/trace           {events:[…]} — board debug events, appended to the task's trace.jsonl (max 500/batch)
 GET  /api/s/<name>/t/<task>/trace           the raw trace.jsonl (NDJSON)
 ```

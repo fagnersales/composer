@@ -38,6 +38,18 @@ function ispPaintPick() {
 function buildPickPrompt(n) {
   var t = null;
   for (var i = 0; i < TASKS.length; i++) if (TASKS[i].slug === TASK) t = TASKS[i];
+  // a worktree variant's code already exists as a real commit — the hand-off
+  // is a cherry-pick, not a rebuild-from-mockup
+  if (n.commit) {
+    return 'Land a UI design that was chosen on a Composer board into this project.\n\n' +
+      'Task: "' + (t ? t.title : TASK) + '"\n' +
+      'Winning variant: "' + n.name + '"' + (n.description ? ' — ' + n.description : '') + '\n\n' +
+      'The winning code was built in this repository and committed as ' + n.commit + ' (kept alive under refs/composer/, off any branch).\n\n' +
+      'Start from `git show ' + n.commit + '` to see the diff, then land it on the current branch — `git cherry-pick ' + n.commit + '` if it applies cleanly, otherwise apply the diff by hand. It was built as a demo variant: review it for demo shortcuts (partially wired interactions, trimmed data) and finish those against the real data and conventions before considering it done.\n\n' +
+      'The variant\'s capture (screenshot/recording) is at ' +
+      (DIR ? DIR + '/' + TASK + '/variants/' : '.composer/' + TASK + '/variants/') +
+      ' if you want to see what was approved.';
+  }
   var where = n.url
     ? 'The chosen design runs live at ' + n.url + ' (a route on this project\'s dev server).'
     : 'The chosen design is a self-contained HTML mockup at:\n' +
@@ -106,13 +118,28 @@ function buildInspFrame(n) {
     ispPause.disabled = true;
   } else {
     f.setAttribute('sandbox', 'allow-scripts');
-    f.srcdoc = withPause(n.html);
+    f.srcdoc = withPause(withBase(n.html));
     ispPause.disabled = false;
   }
   ispFrame.appendChild(f);
   inspIframe = f;
   insPausedState = false;
   ispRenderPause();
+  // recording cards (worktree mode) embed a video next to the file — offer it
+  var vm = !n.url && n.html ? n.html.match(/<video[^>]*\ssrc="([^"]+)"/i) : null;
+  ispVideoSrc = vm ? vm[1] : null;
+  document.getElementById('ispVid').style.display = ispVideoSrc ? '' : 'none';
+}
+var ispVideoSrc = null;
+function downloadInspVideo() {
+  if (!ispVideoSrc || state.inspectId == null) return;
+  trace('inspect:video-download', { id: state.inspectId });
+  var a = document.createElement('a');
+  // relative srcs live next to the variant file, served by the /v/ asset route
+  a.href = /^[a-z]+:|^\//i.test(ispVideoSrc) ? ispVideoSrc : '/v/' + SESSION + '/' + TASK + '/' + ispVideoSrc;
+  a.download = SESSION + '-' + ispVideoSrc.split('/').pop();
+  a.click();
+  toast('Video downloading…');
 }
 /* the frame is CSS-sized off its aspect ratio — setting it is two custom props */
 function setAspect(a) {
@@ -197,18 +224,53 @@ function togglePause() {
   insPausedState = !insPausedState;
   ispRenderPause();
 }
-/* screenshot the inspected variant to the clipboard. The iframe is sandboxed
-   (no allow-same-origin), so its pixels are unreachable from here — instead we
-   tab-capture (preferCurrentTab skips the picker's surface hunt), crop the
-   frame's rect out of one video frame, and hand the PNG to the clipboard.
-   Chromium-only; the catch covers both "denied" and "unsupported". */
-var shotBusy = false;
+/* screenshot the inspected variant to the clipboard. The frame's pixels are
+   unreachable from here (sandboxed, no allow-same-origin), so the withPause
+   hook injected into every srcdoc variant does the shot ITSELF: on a "shot"
+   message it rasterizes its live DOM and posts the PNG back — no picker, no
+   prompt. Only url variants (live dev-server routes, nothing injected there)
+   and hook failures fall back to the tab-capture path below. */
+var shotBusy = false, shotWait = null;
 function captureVariant() {
   if (shotBusy || state.inspectId == null || !inspIframe) return;
+  var n = byId(state.inspectId);
+  trace('inspect:screenshot', { id: state.inspectId, via: n && n.url ? 'tab' : 'frame' });
+  if (n && !n.url) {
+    shotBusy = true;
+    // no reply (hook predates this build / page replaced it) → picker fallback
+    shotWait = setTimeout(function () { shotWait = null; shotBusy = false; captureTab(); }, 3000);
+    inspIframe.contentWindow.postMessage('shot', '*');
+  } else {
+    captureTab();
+  }
+}
+/* the frame answered — a blob means a finished PNG, null means it failed */
+function shotArrived(blob) {
+  if (!shotBusy || shotWait == null) return;
+  clearTimeout(shotWait); shotWait = null; shotBusy = false;
+  if (blob) deliverShot(blob);
+  else { trace('inspect:screenshot-fallback'); captureTab(); }
+}
+function deliverShot(blob) {
+  // save first — that's the point of the button; clipboard is a best-effort bonus
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = SESSION + '-' + (state.inspectId || 'variant').replace(/\.html$/, '') + '.png';
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+    toast('Screenshot saved (and copied)');
+  }, function () {
+    toast('Screenshot saved');
+  });
+}
+/* fallback: tab-capture (preferCurrentTab pre-selects this tab), crop the
+   frame's rect out of one video frame. Chromium-only. */
+function captureTab() {
+  if (shotBusy) return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
     toast('Screenshots need a Chromium browser'); return;
   }
-  trace('inspect:screenshot', { id: state.inspectId });
   shotBusy = true;
   var stream, video = document.createElement('video');
   navigator.mediaDevices.getDisplayMedia({
@@ -235,17 +297,7 @@ function captureVariant() {
   }).then(function (blob) {
     endShot(stream);
     if (!blob) throw new Error('no frame');
-    return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
-      toast('Screenshot copied to clipboard');
-    }, function () {
-      // clipboard refused (focus/permission) — a download still delivers it
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = SESSION + '-' + (state.inspectId || 'variant').replace(/\.html$/, '') + '.png';
-      a.click();
-      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
-      toast('Clipboard refused — downloaded the screenshot instead');
-    });
+    deliverShot(blob);
   }).catch(function (e) {
     endShot(stream);
     trace('inspect:screenshot-fail', { msg: String(e).slice(0, 120) });

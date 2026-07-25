@@ -18,6 +18,9 @@ function refreshVariants(announce) {
       if (existing) {
         existing.parentId = parentId;
         if (extra.length) existing.extraParents = extra;
+        // stats land in a second write (spawn.sh stamps after the builder
+        // exits), so an already-seen node can still gain its effort badge
+        existing.stats = v.stats || null;
         return;
       }
       var pos = savedPos[v.id], how = 'saved';
@@ -40,6 +43,7 @@ function refreshVariants(announce) {
         id: v.id, parentId: parentId, ts: v.ts,
         extraParents: extra.length ? extra : (pos.extraParents || []),
         name: v.name, model: v.model, description: v.description, html: v.html, url: v.url,
+        commit: v.commit || null, stats: v.stats || null,
         x: pos.x, y: pos.y, building: false
       };
       state.nodes.push(n);
@@ -56,6 +60,8 @@ function refreshVariants(announce) {
     });
     renderEdges();
     renderMinimap();
+    state.nodes.forEach(updateNodeVisual); // repaint late-arriving effort badges
+    paintEffort();
     if (added > 0) traceLayout('landed');
     if (!didFit && state.nodes.length) { didFit = true; fitView(); }
     if (announce && added > 0) toast(added + ' new variant' + (added > 1 ? 's' : '') + ' arrived ✨');
@@ -230,3 +236,31 @@ cmpReject.addEventListener('click', function (e) {
   if (sel.length === 1) toggleReject(sel[0].id);
 });
 
+
+/* ---------- effort tally ---------- */
+/* header line: Σ builder time (parallel-aware wall clock in parens) · cards
+   · tokens. Wall clock = union of each stamped builder's [ts-ms, ts]
+   interval, so overlapping builders only count once. */
+function paintEffort() {
+  var el = document.getElementById('effort');
+  if (!el) return;
+  var iv = [], ms = 0, tin = 0, tout = 0, count = 0;
+  state.nodes.forEach(function (nd) {
+    if (!nd.stats || !nd.stats.ms) return;
+    count++;
+    ms += nd.stats.ms; tin += nd.stats.in || 0; tout += nd.stats.out || 0;
+    var end = Date.parse(nd.ts) || 0;
+    if (end) iv.push([end - nd.stats.ms, end]);
+  });
+  if (!count) { el.textContent = ''; return; }
+  iv.sort(function (a, b) { return a[0] - b[0]; });
+  var wall = 0, cur = null;
+  iv.forEach(function (s) {
+    if (!cur || s[0] > cur[1]) { if (cur) wall += cur[1] - cur[0]; cur = s.slice(); }
+    else if (s[1] > cur[1]) cur[1] = s[1];
+  });
+  if (cur) wall += cur[1] - cur[0];
+  el.textContent = '· ' + fmtDur(ms) + ' (' + fmtDur(wall) + ') · ' +
+    count + ' card' + (count > 1 ? 's' : '') + ' · ' +
+    fmtTok(tin) + ' in · ' + fmtTok(tout) + ' out';
+}
