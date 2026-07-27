@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/fagnersales/composer.git"
   },
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/fagnersales/composer/issues"
