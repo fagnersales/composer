@@ -136,18 +136,24 @@ with the running one instead of starting a second.
 
 ```bash
 node server.mjs &            # only if :4600 was not answering
-curl -fsS http://localhost:4600/api/sessions
+curl -fsS http://localhost:4600/api/sessions   # must return JSON — [] on a fresh install
 ```
 
-The response must list the bundled `demo` session. Open
-`http://localhost:4600` for the user if you can — the hub page should
-show **demo** with a `coffee-hero` task; the board for it proves
-end-to-end rendering. Then stop the server if you started it (the
-skill starts it on demand; nothing needs to keep running).
+Then stop the server if you started it — the skill starts it on
+demand; nothing needs to keep running. There is no sample data: the
+hub stays empty until the first real task, which is step 4.
 
-## 4. Report
+## 4. First run + report
 
-Give the user a closing report:
+Composer ships no demo — the first thing on the board should be the
+user's own work. Propose a small first task right now: ask what UI
+they've been meaning to explore (a landing hero, a pricing section,
+their app's empty state — anything small), and offer to kick it off
+immediately with `/composer 3 takes on <their idea>` from whichever
+project it belongs to. If they'd rather not now, that same command
+works from any project whenever they're ready.
+
+Also give a short report:
 
 - **Use it:** from any project, run `/composer <what to build>` (in
   Claude Code or Codex, whichever was wired). Default is 3 variants;

@@ -55,8 +55,8 @@ node server.mjs        # hub on http://localhost:4600 (PORT env to override)
 - `/` — hub page: every registered session, its tasks, fleet-live dots.
 - `/b/<session>?task=<slug>` — the board for one project task.
 
-The skill starts the hub on demand; you rarely run it by hand. A `demo`
-session ships in `demo/`.
+The skill starts the hub on demand; you rarely run it by hand. There
+is no sample data — the hub fills as you run tasks.
 
 ## Per-project layout
 

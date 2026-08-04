@@ -17,8 +17,7 @@ share a browser) is the sole reason `node_modules` exists (playwright). `index.h
 pieces in `src/` and run `node build.mjs`, which concatenates them back
 into the single self-contained `index.html`; commit both. Never hand-edit
 `index.html`. Project data never lives here —
-except `demo/`, a sample session, and `sessions.json`, the persisted
-session→dir registry.
+except `sessions.json`, the persisted session→dir registry.
 
 ## Words the user uses
 

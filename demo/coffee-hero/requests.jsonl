@@ -1,6 +1,0 @@
-{"kind":"request","id":"a1b2c3d4","ts":"2026-07-22T13:05:00.000Z","text":"Loved this one — build 3 more variants riffing on it","variants":["02-midnight-brew.html"],"status":"pending"}
-{"kind":"status","id":"a1b2c3d4","status":"building"}
-{"kind":"request","id":"e5f6a7b8","ts":"2026-07-22T12:40:00.000Z","text":"Make a new variant joining #1 and #4 — warm colors but with the terminal gimmick","variants":["01-sunrise-pour.html","04-glass-terminal.html"],"status":"pending"}
-{"kind":"status","id":"e5f6a7b8","status":"done","note":"→ 05-amber-terminal.html"}
-{"kind":"request","id":"e2a6c2a4","ts":"2026-07-23T04:13:46.480Z","text":"Derive 3 new variants from \"Midnight Brew\"","variants":["02-midnight-brew.html"],"status":"pending","count":3}
-{"kind":"status","id":"e2a6c2a4","status":"cancelled","note":"cancelled from board"}

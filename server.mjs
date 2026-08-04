@@ -22,9 +22,6 @@ function saveRegistry() {
 let registry = {};
 if (fs.existsSync(REG_FILE)) {
   try { registry = JSON.parse(fs.readFileSync(REG_FILE, "utf8")); } catch {}
-} else if (fs.existsSync(path.join(ROOT, "demo"))) {
-  registry = { demo: { dir: path.join(ROOT, "demo") } };
-  saveRegistry();
 }
 // the address a phone on the same network reaches this hub at
 function lanIP() {
