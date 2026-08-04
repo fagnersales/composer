@@ -1,3 +1,5 @@
+<p align="center"><img src="site/logo.svg" width="84" alt=""></p>
+
 # Composer
 
 One prompt spawns a fleet of agents that each build a **different** take
@@ -5,6 +7,8 @@ on the requested UI. You compare them as live cards on an infinite
 pan/zoom board, iterate children from a favorite, and pick a winner —
 all on your machine. For existing apps, builders fork the real code in
 git worktrees, so what you compare is what you'd ship.
+
+![The Composer board: five variants as cards with lineage edges, one selected with the iterate input open](site/board.png)
 
 Homepage: <https://composer.fagner.ink>
 

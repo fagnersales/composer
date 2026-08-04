@@ -8,9 +8,12 @@
 <meta property="og:title" content="Composer — iterate UI in parallel">
 <meta property="og:description" content="One prompt spawns a fleet of agents building divergent UI variants. Compare, iterate, pick — on an infinite board, on your machine.">
 <meta property="og:type" content="website">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://composer.fagner.ink/og.png">
+<meta property="og:url" content="https://composer.fagner.ink">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://composer.fagner.ink/og.png">
 <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23171717'/%3E%3Cg fill='none' stroke='%23fafafa' stroke-width='1.8'%3E%3Crect x='5' y='4.5' width='6' height='5' rx='1.2'/%3E%3Crect x='13' y='4.5' width='6' height='5' rx='1.2'/%3E%3Crect x='9' y='14.5' width='6' height='5' rx='1.2'/%3E%3Cpath d='M8 9.5 12 14.5M16 9.5 12 14.5'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%23171717'/%3E%3Cg fill='none' stroke='%23fafafa' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='17' y='7' width='14' height='10' rx='3'/%3E%3Crect x='6.5' y='31' width='14' height='10' rx='3'/%3E%3Cpath d='M24 20.5 13.5 28M24 20.5 34.5 28'/%3E%3C/g%3E%3Crect x='27.5' y='31' width='14' height='10' rx='3' fill='%23fafafa'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -63,7 +66,7 @@
   <nav class="nav">
     <div class="nav-brand">
       <div style="width:34px;height:34px;border-radius:8px;background:var(--gray-900);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-md)">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fafafa" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="4.5" width="6" height="5" rx="1.2"/><rect x="13" y="4.5" width="6" height="5" rx="1.2"/><rect x="9" y="14.5" width="6" height="5" rx="1.2"/><path d="M8 9.5 12 14.5M16 9.5 12 14.5"/></svg>
+        <svg width="19" height="19" viewBox="0 0 48 48"><g fill="none" stroke="#fafafa" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><rect x="17" y="7" width="14" height="10" rx="3"/><rect x="6.5" y="31" width="14" height="10" rx="3"/><path d="M24 20.5 13.5 28M34.5 28 24 20.5"/></g><rect x="27.5" y="31" width="14" height="10" rx="3" fill="#fafafa"/></svg>
       </div>
       <span style="font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:-.01em">composer</span>
     </div>
@@ -101,35 +104,14 @@
       <p style="margin:14px 0 0;font-size:13px;color:var(--gray-400)">Paste it into Claude Code or Codex — your agent installs everything.</p>
     </div>
 
-    <!-- mini board -->
-    <div style="position:relative;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;box-shadow:var(--shadow-pop);overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px;border-bottom:1px solid var(--gray-150);background:var(--gray-0)">
-        <span style="font-family:var(--mono);font-size:11px;color:var(--gray-500)">checkout-hero <span style="color:var(--gray-300)">·</span> board</span>
-        <span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--gray-700)"><span style="width:5px;height:5px;border-radius:50%;background:var(--gray-900);animation:cmp-pulse 1.4s ease-in-out infinite"></span>fleet live</span>
-      </div>
-      <div style="position:relative;height:290px;background-image:radial-gradient(rgba(10,10,10,.06) 1px,transparent 1px);background-size:18px 18px">
-        <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 460 290" fill="none" preserveAspectRatio="xMidYMid slice">
-          <path d="M118 96 C118 140, 70 120, 70 164" stroke="rgba(115,115,115,.5)" stroke-width="1.5"/>
-          <path d="M118 96 C118 140, 178 120, 178 164" stroke="rgba(115,115,115,.5)" stroke-width="1.5"/>
-          <path d="M292 96 C292 142, 330 122, 330 168" stroke="rgba(115,115,115,.35)" stroke-width="1.5" stroke-dasharray="4 4"/>
-        </svg>
-        <div style="position:absolute;left:62px;top:36px;width:112px;height:60px;background:var(--gray-0);border:1px solid var(--gray-200);border-radius:8px;box-shadow:var(--shadow-md);padding:8px 10px"><div style="font-size:9px;font-weight:600">Dense table</div><div style="margin-top:5px;height:4px;width:80%;background:var(--gray-150);border-radius:2px"></div><div style="margin-top:3px;height:4px;width:64%;background:var(--gray-150);border-radius:2px"></div><div style="margin-top:3px;height:4px;width:72%;background:var(--gray-150);border-radius:2px"></div></div>
-        <div style="position:absolute;left:236px;top:36px;width:112px;height:60px;background:var(--gray-0);border:1px solid var(--gray-200);border-radius:8px;box-shadow:var(--shadow-md);padding:8px 10px"><div style="font-size:9px;font-weight:600">Airy cards</div><div style="display:flex;gap:4px;margin-top:6px"><div style="height:22px;flex:1;background:var(--gray-100);border-radius:3px"></div><div style="height:22px;flex:1;background:var(--gray-100);border-radius:3px"></div><div style="height:22px;flex:1;background:var(--gray-100);border-radius:3px"></div></div></div>
-        <div style="position:absolute;left:14px;top:164px;width:112px;height:64px;background:var(--gray-0);border:1.5px solid var(--gray-900);border-radius:8px;box-shadow:var(--shadow-lg);padding:8px 10px"><div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:9px;font-weight:600">Table · warm</div><svg width="10" height="10" viewBox="0 0 24 24" fill="var(--gray-900)"><path d="M5 16 3 6l5.5 4L12 4l3.5 6L21 6l-2 10H5Zm0 2h14v2H5v-2Z"/></svg></div><div style="margin-top:5px;height:4px;width:76%;background:var(--gray-150);border-radius:2px"></div><div style="margin-top:3px;height:4px;width:58%;background:var(--gray-150);border-radius:2px"></div><div style="margin-top:6px;height:10px;width:44px;background:var(--gray-900);border-radius:3px"></div></div>
-        <div style="position:absolute;left:150px;top:164px;width:112px;height:64px;background:var(--gray-0);border:1px solid var(--gray-200);border-radius:8px;box-shadow:var(--shadow-md);padding:8px 10px"><div style="font-size:9px;font-weight:600">Table · split</div><div style="display:flex;gap:5px;margin-top:6px"><div style="flex:1"><div style="height:4px;background:var(--gray-150);border-radius:2px"></div><div style="margin-top:3px;height:4px;background:var(--gray-150);border-radius:2px"></div></div><div style="width:34px;height:26px;background:var(--gray-100);border-radius:3px"></div></div></div>
-        <div style="position:absolute;left:288px;top:168px;width:112px;height:60px;background:var(--gray-0);border:1px dashed var(--gray-300);border-radius:8px;padding:8px 10px"><div style="font-size:9px;font-weight:600;background-image:linear-gradient(90deg,var(--gray-400) 0%,var(--gray-400) 35%,var(--gray-900) 50%,var(--gray-400) 65%,var(--gray-400) 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:cmp-shimmer 2.2s linear infinite">building…</div><div style="margin-top:6px;height:4px;width:70%;background:var(--gray-100);border-radius:2px"></div><div style="margin-top:3px;height:4px;width:52%;background:var(--gray-100);border-radius:2px"></div></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--gray-150);background:var(--gray-0)">
-        <span style="flex:1;font-family:var(--mono);font-size:10.5px;color:var(--gray-400);border:1px solid var(--gray-200);border-radius:999px;padding:6px 12px;background:var(--gray-50)">Iterate 2 from “Table · warm” — warmer, denser…</span>
-        <span style="font-family:var(--mono);font-size:10.5px;color:var(--gray-0);background:var(--gray-900);border-radius:999px;padding:6px 12px">Go</span>
-      </div>
-    </div>
+    <!-- real board -->
+    <img src="/board.png" alt="The Composer board: five coffee-app hero variants as cards with lineage edges, one selected with the iterate input open, fleet live" style="display:block;width:100%;height:auto;border-radius:12px;border:1px solid var(--gray-200);box-shadow:var(--shadow-pop)">
   </header>
 
   <!-- FOOTER -->
   <footer style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 20px;padding:22px 0 36px;border-top:1px solid var(--gray-150);margin-top:auto">
     <div style="display:flex;align-items:center;gap:9px">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--gray-900)" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="4.5" width="6" height="5" rx="1.2"/><rect x="13" y="4.5" width="6" height="5" rx="1.2"/><rect x="9" y="14.5" width="6" height="5" rx="1.2"/><path d="M8 9.5 12 14.5M16 9.5 12 14.5"/></svg>
+      <svg width="16" height="16" viewBox="0 0 48 48"><g fill="none" stroke="var(--gray-900)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><rect x="17" y="7" width="14" height="10" rx="3"/><rect x="6.5" y="31" width="14" height="10" rx="3"/><path d="M24 20.5 13.5 28M34.5 28 24 20.5"/></g><rect x="27.5" y="31" width="14" height="10" rx="3" fill="var(--gray-900)"/></svg>
       <span style="font-family:var(--mono);font-size:12px;color:var(--gray-500)">composer · MIT license</span>
     </div>
     <div style="display:flex;align-items:center;gap:22px;font-size:12px">
