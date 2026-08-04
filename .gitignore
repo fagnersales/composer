@@ -3,3 +3,4 @@ nohup.out
 .composer/
 node_modules/
 sessions.json
+site/.vercel/

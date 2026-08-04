@@ -1,0 +1,55 @@
+# Composer
+
+> An open-source parallel UI-iteration tool for coding agents. `/composer`
+> spawns a fleet of agents that each build a DIFFERENT variant of the
+> requested UI; the user compares them as live, clickable cards on an
+> infinite pan/zoom board (localhost:4600), iterates children from a
+> favorite, tweaks, combines — and picks a winner that hands off to a
+> fresh agent for real implementation. Runs entirely on your machine, on
+> the Claude Code subscription you already have.
+
+Composer is installed *by your coding agent*. Paste this into Claude Code,
+Codex, or any agent that can fetch a URL and run commands:
+
+> Fetch https://raw.githubusercontent.com/fagnersales/composer/master/INSTALL.md
+> and follow it to install Composer for me.
+
+Once installed, `/composer <what to build>` works from any project — in
+Claude Code (skill symlink) and/or Codex (custom prompt); the installer
+asks which. Variant data lives inside each project under a gitignored
+`.composer/` folder — your generation history, browsable from the board.
+
+## Three modes
+
+- **sketch** — static comps, whole budget on visual quality; fastest way
+  to compare directions.
+- **html** (default) — self-contained interactive mockups: inline CSS/JS,
+  in-memory state, no backend.
+- **worktree** — for iterating on an EXISTING app with real fidelity:
+  builders fork the real codebase in git worktrees, commit their change
+  (kept alive under `refs/composer/…`, invisible to your branches), and
+  ship a screenshot/recording as the card. Picking a winner hands a fresh
+  agent "cherry-pick this SHA" instead of "rebuild this mockup". No
+  mockup drift, and N variants never means N running dev servers.
+
+## The board
+
+Cards with parent→child lineage edges; ghost cards while builds run
+(SSE-live). Select + type to iterate children; shift-click several
+parents to combine them; Iterate|Tweak toggle for one small inline
+change; per-request model picker (sonnet/opus/fable); paste reference
+images into the input; "Pick this one" crowns the winner and reveals a
+Copy-prompt hand-off brief. A phone remote (`/m/<session>`) mirrors
+focus and task both ways via one QR scan. Iterate/tweak lock when no
+fleet agent is heartbeating, so a click never goes unheard.
+
+## Docs
+
+- [README](https://raw.githubusercontent.com/fagnersales/composer/master/README.md): What it is, the board UI, per-project layout, the full HTTP API and agent protocol.
+- [INSTALL](https://raw.githubusercontent.com/fagnersales/composer/master/INSTALL.md): The idempotent install playbook, written for an agent to execute.
+- [SKILL](https://raw.githubusercontent.com/fagnersales/composer/master/skills/composer/SKILL.md): The `/composer` skill itself — fleet fan-out, resident loop, worktree mode.
+
+## Optional
+
+- [Source](https://github.com/fagnersales/composer): MIT-licensed. Zero-dep Node hub server + single-file board UI; Playwright only for the capture helper.
+- [Homepage](https://composer.fagner.ink): Overview.

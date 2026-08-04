@@ -35,31 +35,25 @@ cancel and pick always work — they only record state. Keyboard: +/- zoom, 0 fi
 
 ## Get started
 
-Composer is driven by [Claude Code](https://claude.com/claude-code): the
-`/composer` skill (in `skills/composer/`) spawns the builder fleet and
-serves the board's requests. The fastest setup is to let your agent do
-it — paste this into a Claude Code session:
+Composer is installed *by your coding agent*. Paste this into Claude
+Code, Codex, or any agent that can fetch a URL and run commands:
 
-> Set up Composer for me:
-> 1. Clone https://github.com/fagnersales/composer somewhere permanent
->    (e.g. `~/work/composer`) and `cd` into it.
-> 2. `npm install && npx playwright install chromium` — Playwright and
->    its browser are only used by `capture.mjs` (the screenshot/record
->    helper builder agents use).
-> 3. Symlink the skill into my global skills folder so `/composer` works
->    in every project:
->    `ln -s "$(pwd)/skills/composer" ~/.claude/skills/composer`
-> 4. Verify: `node server.mjs`, open http://localhost:4600 — the bundled
->    `demo` session should be listed. Then stop the server.
->
-> When it's ready, tell me — I'll run `/composer <what to build>` from
-> any project.
+> Fetch https://raw.githubusercontent.com/fagnersales/composer/master/INSTALL.md
+> and follow it to install Composer for me.
 
-The symlink matters: the skill resolves the repo's location by following
-it, and updating Composer stays a plain `git pull`. (If you copy the
-folder instead, the skill will ask where the clone lives.)
+The playbook ([INSTALL.md](INSTALL.md)) clones the repo, wires the
+`/composer` command into Claude Code (skill symlink) and/or Codex
+(custom prompt) — it asks which — and verifies the board end-to-end.
+Homepage: <https://composer.fagner.ink>.
 
-Requirements: Node 18+, Claude Code. The hub itself is zero-dependency;
+The symlink matters for Claude Code installs: the skill resolves the
+repo's location by following it, and updating Composer stays a plain
+`git pull`. (If you copy the folder instead, the skill will ask where
+the clone lives.)
+
+Requirements: Node 18+, and the Claude Code CLI — the fleet builds
+each variant by spawning headless `claude -p` processes, whichever
+agent you drive day-to-day. The hub itself is zero-dependency;
 Playwright is only needed by `capture.mjs`.
 
 ## Run

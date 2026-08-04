@@ -19,6 +19,9 @@ in — this SKILL.md lives at `<repo>/skills/composer/SKILL.md`, and the
 recommended install symlinks that folder into `~/.claude/skills/`.
 Resolve it once at the start and use it for every command:
 `HUB=$(cd "$(dirname "$(readlink -f ~/.claude/skills/composer/SKILL.md)")/../.." && pwd)`.
+If the prompt that invoked you already states the clone's path (e.g. a
+Codex prompt file with `HUB=` baked in), use that and skip the symlink
+resolution.
 Sanity-check that `$HUB/server.mjs` exists; if it doesn't (the skill was
 copied instead of symlinked), ask the user where their composer clone
 lives and use that path as `$HUB`. Read `$HUB/README.md` for the full
