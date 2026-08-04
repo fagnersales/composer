@@ -70,11 +70,11 @@ the Input.
    (cancel and pick stay allowed — they only record state). Server pushes SSE on file changes + liveness
    flips; the board hot-updates.
 
-Full protocol details: README.md.
+Full protocol details: PROTOCOL.md.
 
 ## Don't break
 
-- The API contract (see README "HTTP API") — UI and fleet agents both
+- The API contract (see PROTOCOL.md "HTTP API") — UI and fleet agents both
   depend on it.
 - The built `index.html` must stay a single self-contained file; the rule
   applies to the artifact — the source lives in `src/`.

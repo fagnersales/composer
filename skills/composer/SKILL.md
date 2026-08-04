@@ -24,7 +24,7 @@ Codex prompt file with `HUB=` baked in), use that and skip the symlink
 resolution.
 Sanity-check that `$HUB/server.mjs` exists; if it doesn't (the skill was
 copied instead of symlinked), ask the user where their composer clone
-lives and use that path as `$HUB`. Read `$HUB/README.md` for the full
+lives and use that path as `$HUB`. Read `$HUB/PROTOCOL.md` for the full
 API/protocol if anything below is insufficient.
 
 The request (what to build; optionally how many variants): `$ARGUMENTS`

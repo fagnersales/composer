@@ -45,8 +45,9 @@ fleet agent is heartbeating, so a click never goes unheard.
 
 ## Docs
 
-- [README](https://raw.githubusercontent.com/fagnersales/composer/master/README.md): What it is, the board UI, per-project layout, the full HTTP API and agent protocol.
+- [README](https://raw.githubusercontent.com/fagnersales/composer/master/README.md): What it is, the board, how to run it.
 - [INSTALL](https://raw.githubusercontent.com/fagnersales/composer/master/INSTALL.md): The idempotent install playbook, written for an agent to execute.
+- [PROTOCOL](https://raw.githubusercontent.com/fagnersales/composer/master/PROTOCOL.md): The reference for agents/integrators — variant file format, HTTP API, requests.jsonl protocol, spawn.sh.
 - [SKILL](https://raw.githubusercontent.com/fagnersales/composer/master/skills/composer/SKILL.md): The `/composer` skill itself — fleet fan-out, resident loop, worktree mode.
 
 ## Optional
